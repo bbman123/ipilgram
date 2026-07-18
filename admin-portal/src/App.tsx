@@ -12,6 +12,20 @@ import FlightsPage from "./pages/FlightsPage";
 import FlightNewPage from "./pages/FlightNewPage";
 import FlightDetailPage from "./pages/FlightDetailPage";
 import FlightEditPage from "./pages/FlightEditPage";
+import AccommodationsPage from "./pages/AccommodationsPage";
+import AccommodationNewPage from "./pages/AccommodationNewPage";
+import AccommodationDetailPage from "./pages/AccommodationDetailPage";
+import AccommodationEditPage from "./pages/AccommodationEditPage";
+import TransportsPage from "./pages/TransportsPage";
+import TransportNewPage from "./pages/TransportNewPage";
+import TransportDetailPage from "./pages/TransportDetailPage";
+import TransportEditPage from "./pages/TransportEditPage";
+import AnnouncementsPage from "./pages/AnnouncementsPage";
+import AnnouncementNewPage from "./pages/AnnouncementNewPage";
+import AnnouncementDetailPage from "./pages/AnnouncementDetailPage";
+import AnnouncementEditPage from "./pages/AnnouncementEditPage";
+import PreferencesPage from "./pages/PreferencesPage";
+import PreferenceEditPage from "./pages/PreferenceEditPage";
 
 function App() {
   return (
@@ -35,6 +49,21 @@ function App() {
             <Route path="flights/new" element={<FlightNewPage />} />
             <Route path="flights/:id" element={<FlightDetailPage />} />
             <Route path="flights/:id/edit" element={<FlightEditPage />} />
+            <Route path="accommodations" element={<AccommodationsPage />} />
+            <Route path="accommodations/new" element={<AccommodationNewPage />} />
+            <Route path="accommodations/:id" element={<AccommodationDetailPage />} />
+            <Route path="accommodations/:id/edit" element={<AccommodationEditPage />} />
+            <Route path="transports" element={<TransportsPage />} />
+            <Route path="transports/new" element={<TransportNewPage />} />
+            <Route path="transports/:id" element={<TransportDetailPage />} />
+            <Route path="transports/:id/edit" element={<TransportEditPage />} />
+            <Route path="announcements" element={<AnnouncementsPage />} />
+            <Route path="announcements/new" element={<AnnouncementNewPage />} />
+            <Route path="announcements/:id" element={<AnnouncementDetailPage />} />
+            <Route path="announcements/:id/edit" element={<AnnouncementEditPage />} />
+            <Route path="settings" element={<PreferencesPage />} />
+            <Route path="settings/new" element={<PreferenceEditPage />} />
+            <Route path="settings/:id" element={<PreferenceEditPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

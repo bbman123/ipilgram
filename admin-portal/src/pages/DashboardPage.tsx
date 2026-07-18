@@ -17,6 +17,9 @@ export default function DashboardPage() {
         {[
           { label: "Total Pilgrims", value: "0", color: "bg-emerald-50 text-emerald-700" },
           { label: "Total Flights", value: "0", color: "bg-blue-50 text-blue-700" },
+          { label: "Total Accommodations", value: "0", color: "bg-teal-50 text-teal-700" },
+          { label: "Total Transports", value: "0", color: "bg-orange-50 text-orange-700" },
+          { label: "Announcements", value: "0", color: "bg-indigo-50 text-indigo-700" },
           { label: "Notifications Sent", value: "0", color: "bg-amber-50 text-amber-700" },
           { label: "System Users", value: "1", color: "bg-purple-50 text-purple-700" },
         ].map((stat) => (
@@ -58,6 +61,45 @@ export default function DashboardPage() {
             <div>
               <div className="text-sm font-medium text-gray-900">Add Flight</div>
               <div className="text-xs text-gray-500">Schedule a flight</div>
+            </div>
+          </Link>
+
+          <Link to="/transports/new"
+            className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-colors text-left">
+            <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 17h8M5 10h14a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2v-7a2 2 0 012-2zM3 17v3M21 17v3M7 14v-1M12 14v-1M17 14v-1" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">Add Transport</div>
+              <div className="text-xs text-gray-500">Schedule transport</div>
+            </div>
+          </Link>
+
+          <Link to="/announcements/new"
+            className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors text-left">
+            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">New Announcement</div>
+              <div className="text-xs text-gray-500">Publish to pilgrims</div>
+            </div>
+          </Link>
+
+          <Link to="/accommodations/new"
+            className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-teal-300 hover:bg-teal-50 transition-colors text-left">
+            <div className="w-10 h-10 bg-teal-100 text-teal-600 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2 20a2 2 0 002 2h16a2 2 0 002-2V8l-7 4V8L8 12V8L2 11.5V20zM4 9l4-2.5L12 9l4-2.5L20 9V4a2 2 0 00-2-2H6a2 2 0 00-2 2v5z" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">Add Accommodation</div>
+              <div className="text-xs text-gray-500">Assign hotel lodging</div>
             </div>
           </Link>
 
