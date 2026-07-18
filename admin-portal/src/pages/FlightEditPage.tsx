@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getFlight, updateFlight, type Flight } from "../api/flights";
-import { listPilgrims, type Pilgrim } from "../api/pilgrims";
 
 export default function FlightEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -10,9 +9,7 @@ export default function FlightEditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [flight, setFlight] = useState<Flight | null>(null);
-  const [pilgrims, setPilgrims] = useState<Pilgrim[]>([]);
 
-  const [pilgrimId, setPilgrimId] = useState("");
   const [airline, setAirline] = useState("");
   const [flightNumber, setFlightNumber] = useState("");
   const [departureAirport, setDepartureAirport] = useState("");
@@ -24,13 +21,10 @@ export default function FlightEditPage() {
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      id ? getFlight(Number(id)) : Promise.reject(),
-      listPilgrims(1, 100).then((d) => setPilgrims(d.items)),
-    ])
-      .then(([f]) => {
+    if (!id) return;
+    getFlight(Number(id))
+      .then((f) => {
         setFlight(f);
-        setPilgrimId(String(f.pilgrim_id));
         setAirline(f.airline);
         setFlightNumber(f.flight_number);
         setDepartureAirport(f.departure_airport);
@@ -52,7 +46,6 @@ export default function FlightEditPage() {
     setSaving(true);
     try {
       await updateFlight(Number(id), {
-        pilgrim_id: Number(pilgrimId),
         airline,
         flight_number: flightNumber,
         departure_airport: departureAirport,
@@ -94,17 +87,6 @@ export default function FlightEditPage() {
         {error && (
           <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">{error}</div>
         )}
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Pilgrim *</label>
-          <select value={pilgrimId} onChange={(e) => setPilgrimId(e.target.value)} required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-            <option value="">Select a pilgrim</option>
-            {pilgrims.map((p) => (
-              <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
-            ))}
-          </select>
-        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getAccommodation, updateAccommodation, type Accommodation } from "../api/accommodations";
-import { listPilgrims, type Pilgrim } from "../api/pilgrims";
 
 export default function AccommodationEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -10,9 +9,7 @@ export default function AccommodationEditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [acc, setAcc] = useState<Accommodation | null>(null);
-  const [pilgrims, setPilgrims] = useState<Pilgrim[]>([]);
 
-  const [pilgrimId, setPilgrimId] = useState("");
   const [hotelName, setHotelName] = useState("");
   const [city, setCity] = useState("");
   const [building, setBuilding] = useState("");
@@ -24,13 +21,10 @@ export default function AccommodationEditPage() {
   const [checkOut, setCheckOut] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      id ? getAccommodation(Number(id)) : Promise.reject(),
-      listPilgrims(1, 100).then((d) => setPilgrims(d.items)),
-    ])
-      .then(([a]) => {
+    if (!id) return;
+    getAccommodation(Number(id))
+      .then((a) => {
         setAcc(a);
-        setPilgrimId(String(a.pilgrim_id));
         setHotelName(a.hotel_name);
         setCity(a.city);
         setBuilding(a.building || "");
@@ -52,7 +46,6 @@ export default function AccommodationEditPage() {
     setSaving(true);
     try {
       await updateAccommodation(Number(id), {
-        pilgrim_id: Number(pilgrimId),
         hotel_name: hotelName,
         city,
         building: building || undefined,
@@ -94,17 +87,6 @@ export default function AccommodationEditPage() {
         {error && (
           <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">{error}</div>
         )}
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Pilgrim *</label>
-          <select value={pilgrimId} onChange={(e) => setPilgrimId(e.target.value)} required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-            <option value="">Select a pilgrim</option>
-            {pilgrims.map((p) => (
-              <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
-            ))}
-          </select>
-        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

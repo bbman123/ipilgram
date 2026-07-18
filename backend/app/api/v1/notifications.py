@@ -1,8 +1,8 @@
+import logging
 from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -14,6 +14,7 @@ from app.models.notification import (
     NotificationStatus,
     DeviceToken,
 )
+from app.schemas.common import PaginationParams, SortingParams, paginate
 from app.schemas.notification import (
     SendNotificationRequest,
     NotificationResponse,
@@ -23,7 +24,11 @@ from app.schemas.notification import (
 )
 from app.services.fcm import FCMService
 
+logger = logging.getLogger("hajj_api")
+
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
+
+ALLOWED_SORT_FIELDS = ["id", "notification_type", "status", "created_at", "sent_at"]
 
 
 @router.post(
@@ -32,8 +37,7 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
     summary="Send push notification",
     description=(
         "Send a push notification to one or more pilgrims via FCM. "
-        "If pilgrim_ids is empty or null, broadcasts to all active pilgrims. "
-        "Records the notification in the database regardless of delivery status."
+        "If pilgrim_ids is empty or null, broadcasts to all active pilgrims."
     ),
     responses={
         200: {"description": "Notification(s) created and delivery attempted"},
@@ -131,7 +135,7 @@ def send_notification(
     "",
     response_model=PaginatedNotifications,
     summary="List notification history",
-    description="Retrieve a paginated list of sent notifications. Supports filtering by type and status.",
+    description="Retrieve a paginated list of sent notifications. Supports search, sorting, and filtering by type and status.",
     responses={
         200: {"description": "Paginated notification history"},
         401: {"description": "Authentication required"},
@@ -141,13 +145,11 @@ def send_notification(
 def list_notifications(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
-    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
-    size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    pagination: Annotated[PaginationParams, Depends()],
+    sorting: Annotated[SortingParams, Depends()],
     notification_type: NotificationType | None = Query(None, alias="type", description="Filter by notification type"),
     status_filter: NotificationStatus | None = Query(None, alias="status", description="Filter by delivery status"),
 ):
-    import math
-
     query = db.query(Notification)
 
     if notification_type:
@@ -156,21 +158,15 @@ def list_notifications(
     if status_filter:
         query = query.filter(Notification.status == status_filter)
 
-    total = query.count()
-    pages = math.ceil(total / size) if total > 0 else 1
-    items = (
-        query.order_by(Notification.created_at.desc())
-        .offset((page - 1) * size)
-        .limit(size)
-        .all()
-    )
+    query = sorting.apply(query, Notification, ALLOWED_SORT_FIELDS)
+    result = paginate(query, pagination)
 
     return PaginatedNotifications(
-        items=[NotificationResponse.model_validate(n) for n in items],
-        total=total,
-        page=page,
-        size=size,
-        pages=pages,
+        items=[NotificationResponse.model_validate(n) for n in result["items"]],
+        total=result["total"],
+        page=result["page"],
+        size=result["size"],
+        pages=result["pages"],
     )
 
 
@@ -234,6 +230,6 @@ def unregister_device(
         DeviceToken.pilgrim_id == current_user.id,
     ).first()
     if not dt:
-        raise HTTPException(status_code=404, detail="Device token not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device token not found")
     dt.is_active = False
     db.commit()

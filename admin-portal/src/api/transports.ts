@@ -4,7 +4,6 @@ export type TransportType = "bus" | "van" | "taxi" | "car" | "other";
 
 export interface Transport {
   id: number;
-  pilgrim_id: number;
   bus_number: string;
   pickup_location: string;
   destination: string;
@@ -14,8 +13,6 @@ export interface Transport {
   transport_type: TransportType;
   created_at: string;
   updated_at: string;
-  pilgrim_name: string | null;
-  pilgrim_email: string | null;
 }
 
 export interface PaginatedTransports {
@@ -27,7 +24,6 @@ export interface PaginatedTransports {
 }
 
 export interface TransportCreateData {
-  pilgrim_id: number;
   bus_number: string;
   pickup_location: string;
   destination: string;
@@ -38,7 +34,6 @@ export interface TransportCreateData {
 }
 
 export interface TransportUpdateData {
-  pilgrim_id?: number;
   bus_number?: string;
   pickup_location?: string;
   destination?: string;
@@ -53,12 +48,10 @@ export async function listTransports(
   size = 20,
   search = "",
   type?: string,
-  pilgrimId?: number
 ): Promise<PaginatedTransports> {
   const params: Record<string, string | number> = { page, size };
   if (search) params.search = search;
   if (type) params.type = type;
-  if (pilgrimId) params.pilgrim_id = pilgrimId;
   const { data } = await apiClient.get<PaginatedTransports>("/transports", { params });
   return data;
 }

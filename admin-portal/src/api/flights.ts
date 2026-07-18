@@ -12,7 +12,6 @@ export type FlightStatus =
 
 export interface Flight {
   id: number;
-  pilgrim_id: number;
   airline: string;
   flight_number: string;
   departure_airport: string;
@@ -24,8 +23,6 @@ export interface Flight {
   status: FlightStatus;
   created_at: string;
   updated_at: string;
-  pilgrim_name: string | null;
-  pilgrim_email: string | null;
 }
 
 export interface PaginatedFlights {
@@ -37,7 +34,6 @@ export interface PaginatedFlights {
 }
 
 export interface FlightCreateData {
-  pilgrim_id: number;
   airline: string;
   flight_number: string;
   departure_airport: string;
@@ -50,7 +46,6 @@ export interface FlightCreateData {
 }
 
 export interface FlightUpdateData {
-  pilgrim_id?: number;
   airline?: string;
   flight_number?: string;
   departure_airport?: string;
@@ -67,12 +62,10 @@ export async function listFlights(
   size = 20,
   search = "",
   status?: string,
-  pilgrimId?: number
 ): Promise<PaginatedFlights> {
   const params: Record<string, string | number> = { page, size };
   if (search) params.search = search;
   if (status) params.status = status;
-  if (pilgrimId) params.pilgrim_id = pilgrimId;
   const { data } = await apiClient.get<PaginatedFlights>("/flights", { params });
   return data;
 }

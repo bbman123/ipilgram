@@ -4,7 +4,6 @@ import {
   getPreference,
   updatePreference,
   createPreference,
-  getPreferenceByPilgrim,
   type Preference,
 } from "../api/preferences";
 import { listPilgrims, type Pilgrim } from "../api/pilgrims";

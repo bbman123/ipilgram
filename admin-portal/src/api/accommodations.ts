@@ -2,7 +2,6 @@ import apiClient from "./client";
 
 export interface Accommodation {
   id: number;
-  pilgrim_id: number;
   hotel_name: string;
   city: string;
   building: string | null;
@@ -14,8 +13,6 @@ export interface Accommodation {
   check_out: string;
   created_at: string;
   updated_at: string;
-  pilgrim_name: string | null;
-  pilgrim_email: string | null;
 }
 
 export interface PaginatedAccommodations {
@@ -27,7 +24,6 @@ export interface PaginatedAccommodations {
 }
 
 export interface AccommodationCreateData {
-  pilgrim_id: number;
   hotel_name: string;
   city: string;
   building?: string;
@@ -40,7 +36,6 @@ export interface AccommodationCreateData {
 }
 
 export interface AccommodationUpdateData {
-  pilgrim_id?: number;
   hotel_name?: string;
   city?: string;
   building?: string;
@@ -56,12 +51,10 @@ export async function listAccommodations(
   page = 1,
   size = 20,
   search = "",
-  pilgrimId?: number,
   city?: string
 ): Promise<PaginatedAccommodations> {
   const params: Record<string, string | number> = { page, size };
   if (search) params.search = search;
-  if (pilgrimId) params.pilgrim_id = pilgrimId;
   if (city) params.city = city;
   const { data } = await apiClient.get<PaginatedAccommodations>("/accommodations", { params });
   return data;

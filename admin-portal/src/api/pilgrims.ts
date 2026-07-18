@@ -10,6 +10,7 @@ export interface Pilgrim {
   nationality: string | null;
   passport_number: string | null;
   emergency_contact: string | null;
+  package_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ export interface PilgrimUpdateData {
   passport_number?: string;
   emergency_contact?: string;
   is_active?: boolean;
+  package_id?: number | null;
 }
 
 export async function listPilgrims(

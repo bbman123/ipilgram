@@ -74,8 +74,6 @@ export default function FlightDetailPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {[
-            { label: "Pilgrim", value: flight.pilgrim_name || "-" },
-            { label: "Pilgrim Email", value: flight.pilgrim_email || "-" },
             { label: "Route", value: `${flight.departure_airport} → ${flight.arrival_airport}` },
             { label: "Status", value: flight.status.replace("_", " "), badge: true },
             { label: "Departure", value: new Date(flight.departure_datetime).toLocaleString() },

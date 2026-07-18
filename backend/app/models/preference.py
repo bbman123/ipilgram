@@ -1,4 +1,5 @@
 import enum
+from datetime import datetime
 
 from sqlalchemy import String, Boolean, ForeignKey, Enum, Integer
 from sqlalchemy.orm import Mapped, mapped_column
@@ -36,7 +37,7 @@ class Preference(Base):
     )
     font_size: Mapped[int] = mapped_column(Integer, default=16)
     notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[str] = mapped_column(server_default=func.now())
-    updated_at: Mapped[str] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )

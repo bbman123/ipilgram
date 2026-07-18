@@ -6,7 +6,6 @@ from app.models.flight import FlightStatus
 
 
 class FlightCreate(BaseModel):
-    pilgrim_id: int = Field(..., description="Pilgrim user ID")
     airline: str = Field(..., min_length=1, max_length=255, description="Airline name", examples=["Nigerian Airlines"])
     flight_number: str = Field(..., min_length=1, max_length=50, description="Flight number", examples=["NA-101"])
     departure_airport: str = Field(..., min_length=1, max_length=100, description="Departure airport code", examples=["ABV"])
@@ -19,7 +18,6 @@ class FlightCreate(BaseModel):
 
 
 class FlightUpdate(BaseModel):
-    pilgrim_id: int | None = Field(default=None, description="Reassign to another pilgrim")
     airline: str | None = Field(default=None, min_length=1, max_length=255, description="Airline name")
     flight_number: str | None = Field(default=None, min_length=1, max_length=50, description="Flight number")
     departure_airport: str | None = Field(default=None, min_length=1, max_length=100, description="Departure airport")
@@ -33,7 +31,6 @@ class FlightUpdate(BaseModel):
 
 class FlightResponse(BaseModel):
     id: int = Field(..., description="Unique flight identifier")
-    pilgrim_id: int = Field(..., description="Assigned pilgrim ID")
     airline: str = Field(..., description="Airline name")
     flight_number: str = Field(..., description="Flight number")
     departure_airport: str = Field(..., description="Departure airport")
@@ -43,19 +40,14 @@ class FlightResponse(BaseModel):
     gate: str | None = Field(default=None, description="Boarding gate")
     seat_number: str | None = Field(default=None, description="Seat assignment")
     status: FlightStatus = Field(..., description="Current flight status")
-    created_at: str = Field(..., description="Record creation timestamp")
-    updated_at: str = Field(..., description="Last update timestamp")
+    created_at: datetime = Field(..., description="Record creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class FlightWithPilgrim(FlightResponse):
-    pilgrim_name: str | None = Field(default=None, description="Pilgrim full name")
-    pilgrim_email: str | None = Field(default=None, description="Pilgrim email address")
-
-
 class PaginatedFlights(BaseModel):
-    items: list[FlightWithPilgrim] = Field(..., description="List of flight records")
+    items: list[FlightResponse] = Field(..., description="List of flight records")
     total: int = Field(..., description="Total number of matching records")
     page: int = Field(..., description="Current page number")
     size: int = Field(..., description="Page size")

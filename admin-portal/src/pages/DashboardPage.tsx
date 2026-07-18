@@ -1,8 +1,35 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { getActiveAnnouncements, type Announcement } from "../api/announcements";
+
+const targetColors: Record<string, string> = {
+  all: "bg-indigo-100 text-indigo-700",
+  pilgrim: "bg-emerald-100 text-emerald-700",
+  package: "bg-amber-100 text-amber-700",
+  flight: "bg-blue-100 text-blue-700",
+  accommodation: "bg-teal-100 text-teal-700",
+  transport: "bg-orange-100 text-orange-700",
+};
+
+const priorityColors: Record<string, string> = {
+  low: "bg-gray-100 text-gray-600",
+  medium: "bg-blue-100 text-blue-600",
+  high: "bg-amber-100 text-amber-700",
+  urgent: "bg-red-100 text-red-700",
+};
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [activeAnnouncements, setActiveAnnouncements] = useState<Announcement[]>([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
+
+  useEffect(() => {
+    getActiveAnnouncements()
+      .then(setActiveAnnouncements)
+      .catch(() => {})
+      .finally(() => setLoadingAnnouncements(false));
+  }, []);
 
   return (
     <div>
@@ -16,11 +43,11 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           { label: "Total Pilgrims", value: "0", color: "bg-emerald-50 text-emerald-700" },
+          { label: "Packages", value: "0", color: "bg-amber-50 text-amber-700" },
           { label: "Total Flights", value: "0", color: "bg-blue-50 text-blue-700" },
           { label: "Total Accommodations", value: "0", color: "bg-teal-50 text-teal-700" },
           { label: "Total Transports", value: "0", color: "bg-orange-50 text-orange-700" },
           { label: "Announcements", value: "0", color: "bg-indigo-50 text-indigo-700" },
-          { label: "Notifications Sent", value: "0", color: "bg-amber-50 text-amber-700" },
           { label: "System Users", value: "1", color: "bg-purple-50 text-purple-700" },
         ].map((stat) => (
           <div
@@ -34,6 +61,45 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {activeAnnouncements.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Active Announcements</h2>
+            <Link to="/announcements" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">View all</Link>
+          </div>
+          <div className="space-y-3">
+            {activeAnnouncements.map((a) => (
+              <Link
+                key={a.id}
+                to={`/announcements/${a.id}`}
+                className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50 transition-colors"
+              >
+                <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${priorityColors[a.priority]}`}>
+                  {a.priority}
+                </span>
+                <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${targetColors[a.target_type]}`}>
+                  {a.target_type === "all" ? "All" : a.target_type}
+                </span>
+                <span className="text-sm font-medium text-gray-900 line-clamp-1 flex-1">{a.title}</span>
+                <span className="text-xs text-gray-500 shrink-0">
+                  {new Date(a.expiry_date).toLocaleDateString()}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeAnnouncements.length === 0 && !loadingAnnouncements && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Active Announcements</h2>
+            <Link to="/announcements/new" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">Create one</Link>
+          </div>
+          <p className="text-sm text-gray-500">No active announcements at the moment.</p>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>

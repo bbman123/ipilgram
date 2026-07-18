@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from pathlib import Path
 from typing import Annotated
 
@@ -9,6 +10,8 @@ from app.api.deps import require_role
 from app.models.user import User, Role
 from app.schemas.tts import TTSRequest, TTSResponse
 from app.services.tts import generate_audio, AUDIO_CACHE_DIR
+
+logger = logging.getLogger("hajj_api")
 
 router = APIRouter(prefix="/tts", tags=["Text-to-Speech"])
 
@@ -32,9 +35,10 @@ def text_to_speech(
     try:
         audio_url = generate_audio(body.text, body.language.value)
     except Exception as e:
+        logger.error("TTS generation error: %s", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"TTS generation failed: {str(e)}",
+            detail="TTS generation failed. Please try again later.",
         )
 
     lang_code = {"English": "en", "Hausa": "ha", "Yoruba": "yo", "Igbo": "ig", "Arabic": "ar"}.get(
@@ -61,8 +65,14 @@ def text_to_speech(
 )
 def serve_audio(filename: str):
     """Serve a cached audio file. No authentication required."""
-    filepath = AUDIO_CACHE_DIR / filename
-    if not filepath.exists() or not filepath.suffix == ".mp3":
+    safe_name = Path(filename).name
+    if safe_name != filename or ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Audio not found"
+        )
+
+    filepath = AUDIO_CACHE_DIR / safe_name
+    if not filepath.exists() or filepath.suffix != ".mp3":
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Audio not found"
         )

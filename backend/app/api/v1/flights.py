@@ -1,51 +1,31 @@
-import math
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.api.deps import require_role
 from app.models.user import User, Role
 from app.models.flight import Flight, FlightStatus
+from app.schemas.common import PaginationParams, SortingParams, paginate
 from app.schemas.flight import (
     FlightCreate,
     FlightResponse,
     FlightUpdate,
-    FlightWithPilgrim,
     PaginatedFlights,
 )
 
 router = APIRouter(prefix="/flights", tags=["Flights"])
 
-
-def _flight_with_pilgrim(flight: Flight, db: Session) -> FlightWithPilgrim:
-    pilgrim = db.query(User).filter(User.id == flight.pilgrim_id).first()
-    return FlightWithPilgrim(
-        id=flight.id,
-        pilgrim_id=flight.pilgrim_id,
-        airline=flight.airline,
-        flight_number=flight.flight_number,
-        departure_airport=flight.departure_airport,
-        arrival_airport=flight.arrival_airport,
-        departure_datetime=flight.departure_datetime,
-        arrival_datetime=flight.arrival_datetime,
-        gate=flight.gate,
-        seat_number=flight.seat_number,
-        status=flight.status,
-        created_at=str(flight.created_at),
-        updated_at=str(flight.updated_at),
-        pilgrim_name=pilgrim.full_name if pilgrim else None,
-        pilgrim_email=pilgrim.email if pilgrim else None,
-    )
+ALLOWED_SORT_FIELDS = ["id", "airline", "flight_number", "departure_datetime", "arrival_datetime", "status"]
 
 
 @router.get(
     "",
     response_model=PaginatedFlights,
     summary="List all flights",
-    description="Retrieve a paginated list of flights. Supports search and filtering by status and pilgrim.",
+    description="Retrieve a paginated list of flights. Supports search, sorting, and filtering by status.",
     responses={
         200: {"description": "Paginated list of flights"},
         401: {"description": "Authentication required"},
@@ -55,58 +35,46 @@ def _flight_with_pilgrim(flight: Flight, db: Session) -> FlightWithPilgrim:
 def list_flights(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
-    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
-    size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
-    search: str = Query("", max_length=255, description="Search across airline, flight number, airports, pilgrim name/email"),
+    pagination: Annotated[PaginationParams, Depends()],
+    sorting: Annotated[SortingParams, Depends()],
+    search: str = Query("", max_length=255, description="Search across airline, flight number, airports"),
     status_filter: FlightStatus | None = Query(None, alias="status", description="Filter by flight status"),
-    pilgrim_id: int | None = Query(None, description="Filter by assigned pilgrim ID"),
 ):
     query = db.query(Flight)
 
     if search:
         pattern = f"%{search}%"
-        query = query.join(User, Flight.pilgrim_id == User.id, isouter=True).filter(
+        query = query.filter(
             or_(
                 Flight.airline.ilike(pattern),
                 Flight.flight_number.ilike(pattern),
                 Flight.departure_airport.ilike(pattern),
                 Flight.arrival_airport.ilike(pattern),
-                User.full_name.ilike(pattern),
-                User.email.ilike(pattern),
             )
         )
 
     if status_filter:
         query = query.filter(Flight.status == status_filter)
 
-    if pilgrim_id:
-        query = query.filter(Flight.pilgrim_id == pilgrim_id)
-
-    total = query.count()
-    pages = math.ceil(total / size) if total > 0 else 1
-    items = (
-        query.order_by(Flight.departure_datetime.desc())
-        .offset((page - 1) * size)
-        .limit(size)
-        .all()
-    )
+    query = sorting.apply(query, Flight, ALLOWED_SORT_FIELDS)
+    result = paginate(query, pagination)
 
     return PaginatedFlights(
-        items=[_flight_with_pilgrim(f, db) for f in items],
-        total=total,
-        page=page,
-        size=size,
-        pages=pages,
+        items=[FlightResponse.model_validate(f) for f in result["items"]],
+        total=result["total"],
+        page=result["page"],
+        size=result["size"],
+        pages=result["pages"],
     )
 
 
 @router.get(
     "/{flight_id}",
-    response_model=FlightWithPilgrim,
+    response_model=FlightResponse,
     summary="Get flight by ID",
-    description="Retrieve a single flight record with pilgrim details.",
+    description="Retrieve a single flight record.",
     responses={
-        200: {"description": "Flight record with pilgrim info"},
+        200: {"description": "Flight record"},
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
         404: {"description": "Flight not found"},
@@ -122,21 +90,20 @@ def get_flight(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flight not found"
         )
-    return _flight_with_pilgrim(flight, db)
+    return FlightResponse.model_validate(flight)
 
 
 @router.post(
     "",
-    response_model=FlightWithPilgrim,
+    response_model=FlightResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new flight",
-    description="Register a new flight booking for a pilgrim. Validates that the pilgrim exists and arrival is after departure.",
+    description="Register a new flight record. Validates that arrival is after departure.",
     responses={
         201: {"description": "Flight created successfully"},
         400: {"description": "Arrival must be after departure"},
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
-        404: {"description": "Pilgrim not found"},
     },
 )
 def create_flight(
@@ -144,16 +111,6 @@ def create_flight(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
-    pilgrim = (
-        db.query(User)
-        .filter(User.id == body.pilgrim_id, User.role == Role.pilgrim)
-        .first()
-    )
-    if not pilgrim:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Pilgrim not found"
-        )
-
     if body.arrival_datetime <= body.departure_datetime:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -164,12 +121,12 @@ def create_flight(
     db.add(flight)
     db.commit()
     db.refresh(flight)
-    return _flight_with_pilgrim(flight, db)
+    return FlightResponse.model_validate(flight)
 
 
 @router.put(
     "/{flight_id}",
-    response_model=FlightWithPilgrim,
+    response_model=FlightResponse,
     summary="Update flight details",
     description="Update an existing flight record. Only provided fields are modified.",
     responses={
@@ -177,7 +134,7 @@ def create_flight(
         400: {"description": "Arrival must be after departure"},
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
-        404: {"description": "Flight or pilgrim not found"},
+        404: {"description": "Flight not found"},
     },
 )
 def update_flight(
@@ -194,33 +151,20 @@ def update_flight(
 
     update_data = body.model_dump(exclude_unset=True)
 
-    if "pilgrim_id" in update_data:
-        pilgrim = (
-            db.query(User)
-            .filter(
-                User.id == update_data["pilgrim_id"], User.role == Role.pilgrim
-            )
-            .first()
-        )
-        if not pilgrim:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Pilgrim not found"
-            )
-
-    for field, value in update_data.items():
-        setattr(flight, field, value)
-
-    dep = flight.departure_datetime
-    arr = flight.arrival_datetime
+    dep = update_data.get("departure_datetime", flight.departure_datetime)
+    arr = update_data.get("arrival_datetime", flight.arrival_datetime)
     if dep and arr and arr <= dep:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Arrival must be after departure",
         )
 
+    for field, value in update_data.items():
+        setattr(flight, field, value)
+
     db.commit()
     db.refresh(flight)
-    return _flight_with_pilgrim(flight, db)
+    return FlightResponse.model_validate(flight)
 
 
 @router.delete(

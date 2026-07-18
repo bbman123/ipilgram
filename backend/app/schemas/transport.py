@@ -6,7 +6,6 @@ from app.models.transport import TransportType
 
 
 class TransportCreate(BaseModel):
-    pilgrim_id: int = Field(..., description="Pilgrim user ID")
     bus_number: str = Field(..., min_length=1, max_length=50, description="Vehicle number", examples=["KGH-123AB"])
     pickup_location: str = Field(..., min_length=1, max_length=255, description="Pickup location", examples=["Makkah Hotel Lobby"])
     destination: str = Field(..., min_length=1, max_length=255, description="Destination", examples=["Masjid al-Haram"])
@@ -17,7 +16,6 @@ class TransportCreate(BaseModel):
 
 
 class TransportUpdate(BaseModel):
-    pilgrim_id: int | None = Field(default=None, description="Reassign to another pilgrim")
     bus_number: str | None = Field(default=None, min_length=1, max_length=50, description="Vehicle number")
     pickup_location: str | None = Field(default=None, min_length=1, max_length=255, description="Pickup location")
     destination: str | None = Field(default=None, min_length=1, max_length=255, description="Destination")
@@ -29,7 +27,6 @@ class TransportUpdate(BaseModel):
 
 class TransportResponse(BaseModel):
     id: int = Field(..., description="Unique transport identifier")
-    pilgrim_id: int = Field(..., description="Assigned pilgrim ID")
     bus_number: str = Field(..., description="Vehicle number")
     pickup_location: str = Field(..., description="Pickup location")
     destination: str = Field(..., description="Destination")
@@ -37,19 +34,14 @@ class TransportResponse(BaseModel):
     driver_name: str = Field(..., description="Driver full name")
     driver_phone: str = Field(..., description="Driver phone number")
     transport_type: TransportType = Field(..., description="Vehicle type")
-    created_at: str = Field(..., description="Record creation timestamp")
-    updated_at: str = Field(..., description="Last update timestamp")
+    created_at: datetime = Field(..., description="Record creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class TransportWithPilgrim(TransportResponse):
-    pilgrim_name: str | None = Field(default=None, description="Pilgrim full name")
-    pilgrim_email: str | None = Field(default=None, description="Pilgrim email address")
-
-
 class PaginatedTransports(BaseModel):
-    items: list[TransportWithPilgrim] = Field(..., description="List of transport records")
+    items: list[TransportResponse] = Field(..., description="List of transport records")
     total: int = Field(..., description="Total number of matching records")
     page: int = Field(..., description="Current page number")
     size: int = Field(..., description="Page size")

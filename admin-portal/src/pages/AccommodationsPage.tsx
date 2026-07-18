@@ -81,7 +81,6 @@ export default function AccommodationsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Pilgrim</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Hotel</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">City</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Room</th>
@@ -98,7 +97,6 @@ export default function AccommodationsPage() {
               ) : (
                 items.map((a) => (
                   <tr key={a.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-900">{a.pilgrim_name || "-"}</td>
                     <td className="px-4 py-3 text-gray-600">{a.hotel_name}</td>
                     <td className="px-4 py-3 text-gray-600">{a.city}</td>
                     <td className="px-4 py-3 font-mono text-gray-900">{a.room_number}{a.bed_number ? ` / ${a.bed_number}` : ""}</td>

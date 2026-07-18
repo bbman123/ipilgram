@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.user import Role
@@ -21,6 +23,7 @@ class PilgrimUpdate(BaseModel):
     passport_number: str | None = Field(default=None, max_length=50, description="Passport number")
     emergency_contact: str | None = Field(default=None, max_length=500, description="Emergency contact details")
     is_active: bool | None = Field(default=None, description="Account active status")
+    package_id: int | None = Field(default=None, description="Assigned package ID")
 
 
 class PilgrimResponse(BaseModel):
@@ -33,8 +36,9 @@ class PilgrimResponse(BaseModel):
     nationality: str | None = Field(default=None, description="Country of origin")
     passport_number: str | None = Field(default=None, description="Passport number")
     emergency_contact: str | None = Field(default=None, description="Emergency contact")
-    created_at: str = Field(..., description="Creation timestamp")
-    updated_at: str = Field(..., description="Last update timestamp")
+    package_id: int | None = Field(default=None, description="Assigned package ID")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -120,7 +120,6 @@ export default function FlightsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Pilgrim</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Airline</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Flight #</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Route</th>
@@ -137,7 +136,6 @@ export default function FlightsPage() {
               ) : (
                 flights.map((f) => (
                   <tr key={f.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-900">{f.pilgrim_name || "-"}</td>
                     <td className="px-4 py-3 text-gray-600">{f.airline}</td>
                     <td className="px-4 py-3 font-mono text-gray-900">{f.flight_number}</td>
                     <td className="px-4 py-3 text-gray-600">{f.departure_airport} → {f.arrival_airport}</td>

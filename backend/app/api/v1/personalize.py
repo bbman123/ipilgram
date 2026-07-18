@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Annotated
 
@@ -17,6 +18,8 @@ from app.schemas.personalize import (
 from app.services.ai.gemini import GeminiProvider
 from app.services.ai.engine import PersonalizationEngine
 
+logger = logging.getLogger("hajj_api")
+
 router = APIRouter(prefix="/personalize", tags=["AI Personalization"])
 
 
@@ -35,12 +38,13 @@ def _get_engine() -> PersonalizationEngine:
     "/simplify",
     response_model=SimplifyResponse,
     summary="Simplify announcement text",
-    description="Use AI to rewrite a Hajj announcement in plain, easy-to-understand language. Supports English, Hausa, Yoruba, Igbo, and Arabic.",
+    description="Use AI to rewrite a Hajj announcement in plain, easy-to-understand language.",
     responses={
         200: {"description": "Simplified text returned"},
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
         503: {"description": "AI provider not configured"},
+        502: {"description": "AI provider error"},
     },
 )
 def simplify_announcement(
@@ -51,9 +55,10 @@ def simplify_announcement(
     try:
         result = engine.simplify(body.text, body.language.value)
     except Exception as e:
+        logger.error("AI simplify error: %s", str(e))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"AI provider error: {str(e)}",
+            detail="AI provider error. Please try again later.",
         )
 
     return SimplifyResponse(
@@ -74,6 +79,7 @@ def simplify_announcement(
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
         503: {"description": "AI provider not configured"},
+        502: {"description": "AI provider error"},
     },
 )
 def translate_announcement(
@@ -88,9 +94,10 @@ def translate_announcement(
             body.source_language.value,
         )
     except Exception as e:
+        logger.error("AI translate error: %s", str(e))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"AI provider error: {str(e)}",
+            detail="AI provider error. Please try again later.",
         )
 
     return TranslateResponse(
@@ -112,6 +119,7 @@ def translate_announcement(
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
         503: {"description": "AI provider not configured"},
+        502: {"description": "AI provider error"},
     },
 )
 def process_announcement(
@@ -126,9 +134,10 @@ def process_announcement(
             body.audio_required,
         )
     except Exception as e:
+        logger.error("AI process error: %s", str(e))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"AI provider error: {str(e)}",
+            detail="AI provider error. Please try again later.",
         )
 
     return ProcessResponse(**result)

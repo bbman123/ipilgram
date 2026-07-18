@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { getAnnouncement, deleteAnnouncement, type Announcement } from "../api/announcements";
 
-const categoryColors: Record<string, string> = {
-  emergency: "bg-red-100 text-red-700",
-  general: "bg-gray-100 text-gray-700",
+const targetColors: Record<string, string> = {
+  all: "bg-indigo-100 text-indigo-700",
+  pilgrim: "bg-emerald-100 text-emerald-700",
+  package: "bg-amber-100 text-amber-700",
   flight: "bg-blue-100 text-blue-700",
   accommodation: "bg-teal-100 text-teal-700",
   transport: "bg-orange-100 text-orange-700",
@@ -56,6 +57,8 @@ export default function AnnouncementDetailPage() {
     return <div className="text-center py-20 text-gray-500">Announcement not found.</div>;
   }
 
+  const targetLabel = a.target_type === "all" ? "All Pilgrims" : a.target_type.charAt(0).toUpperCase() + a.target_type.slice(1);
+
   return (
     <div className="max-w-2xl">
       <div className="flex items-center justify-between mb-6">
@@ -79,9 +82,9 @@ export default function AnnouncementDetailPage() {
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center gap-2 mb-4">
-          <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${categoryColors[a.category]}`}>{a.category}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${targetColors[a.target_type]}`}>{targetLabel}</span>
           <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${priorityColors[a.priority]}`}>{a.priority}</span>
-          <span className="text-xs text-gray-500 uppercase">{a.language}</span>
+          {a.target_id && <span className="text-xs text-gray-500">ID: {a.target_id}</span>}
         </div>
 
         <div className="text-sm text-gray-700 whitespace-pre-wrap mb-6">{a.message}</div>

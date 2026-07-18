@@ -1,15 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createAccommodation } from "../api/accommodations";
-import { listPilgrims, type Pilgrim } from "../api/pilgrims";
 
 export default function AccommodationNewPage() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [pilgrims, setPilgrims] = useState<Pilgrim[]>([]);
 
-  const [pilgrimId, setPilgrimId] = useState("");
   const [hotelName, setHotelName] = useState("");
   const [city, setCity] = useState("");
   const [building, setBuilding] = useState("");
@@ -20,17 +17,12 @@ export default function AccommodationNewPage() {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
 
-  useEffect(() => {
-    listPilgrims(1, 100).then((d) => setPilgrims(d.items)).catch(() => {});
-  }, []);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setSaving(true);
     try {
       const acc = await createAccommodation({
-        pilgrim_id: Number(pilgrimId),
         hotel_name: hotelName,
         city,
         building: building || undefined,
@@ -53,24 +45,13 @@ export default function AccommodationNewPage() {
     <div className="max-w-2xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Add Accommodation</h1>
-        <p className="text-gray-500 text-sm mt-1">Assign hotel lodging to a pilgrim</p>
+        <p className="text-gray-500 text-sm mt-1">Register a new accommodation</p>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
         {error && (
           <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">{error}</div>
         )}
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Pilgrim *</label>
-          <select value={pilgrimId} onChange={(e) => setPilgrimId(e.target.value)} required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-            <option value="">Select a pilgrim</option>
-            {pilgrims.map((p) => (
-              <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>
-            ))}
-          </select>
-        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { listAnnouncements, type Announcement } from "../api/announcements";
 
-const categoryColors: Record<string, string> = {
-  emergency: "bg-red-100 text-red-700",
-  general: "bg-gray-100 text-gray-700",
+const targetColors: Record<string, string> = {
+  all: "bg-indigo-100 text-indigo-700",
+  pilgrim: "bg-emerald-100 text-emerald-700",
+  package: "bg-amber-100 text-amber-700",
   flight: "bg-blue-100 text-blue-700",
   accommodation: "bg-teal-100 text-teal-700",
   transport: "bg-orange-100 text-orange-700",
@@ -17,6 +18,16 @@ const priorityColors: Record<string, string> = {
   urgent: "bg-red-100 text-red-700",
 };
 
+const targetTypeOptions = [
+  { value: "", label: "All Targets" },
+  { value: "all", label: "All Pilgrims" },
+  { value: "pilgrim", label: "Pilgrim" },
+  { value: "package", label: "Package" },
+  { value: "flight", label: "Flight" },
+  { value: "accommodation", label: "Accommodation" },
+  { value: "transport", label: "Transport" },
+];
+
 export default function AnnouncementsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<Announcement[]>([]);
@@ -26,8 +37,8 @@ export default function AnnouncementsPage() {
 
   const page = Number(searchParams.get("page")) || 1;
   const search = searchParams.get("search") || "";
-  const categoryFilter = searchParams.get("category") || "";
   const priorityFilter = searchParams.get("priority") || "";
+  const targetTypeFilter = searchParams.get("target_type") || "";
   const [searchInput, setSearchInput] = useState(search);
 
   const fetchData = useCallback(async () => {
@@ -35,8 +46,8 @@ export default function AnnouncementsPage() {
     try {
       const data = await listAnnouncements(
         page, 10, search,
-        categoryFilter || undefined,
-        priorityFilter || undefined
+        priorityFilter || undefined,
+        targetTypeFilter || undefined,
       );
       setItems(data.items);
       setTotal(data.total);
@@ -44,7 +55,7 @@ export default function AnnouncementsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, categoryFilter, priorityFilter]);
+  }, [page, search, priorityFilter, targetTypeFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -52,16 +63,16 @@ export default function AnnouncementsPage() {
     e.preventDefault();
     const params: Record<string, string> = { page: "1" };
     if (searchInput) params.search = searchInput;
-    if (categoryFilter) params.category = categoryFilter;
     if (priorityFilter) params.priority = priorityFilter;
+    if (targetTypeFilter) params.target_type = targetTypeFilter;
     setSearchParams(params);
   }
 
   function goToPage(p: number) {
     const params: Record<string, string> = { page: String(p) };
     if (search) params.search = search;
-    if (categoryFilter) params.category = categoryFilter;
     if (priorityFilter) params.priority = priorityFilter;
+    if (targetTypeFilter) params.target_type = targetTypeFilter;
     setSearchParams(params);
   }
 
@@ -92,31 +103,28 @@ export default function AnnouncementsPage() {
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
         <select
-          value={categoryFilter}
+          value={targetTypeFilter}
           onChange={(e) => {
             const v = e.target.value;
             const params: Record<string, string> = { page: "1" };
-            if (search) params.search = search;
-            if (v) params.category = v;
+            if (searchInput) params.search = searchInput;
+            if (v) params.target_type = v;
             if (priorityFilter) params.priority = priorityFilter;
             setSearchParams(params);
           }}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
         >
-          <option value="">All Categories</option>
-          <option value="emergency">Emergency</option>
-          <option value="general">General</option>
-          <option value="flight">Flight</option>
-          <option value="accommodation">Accommodation</option>
-          <option value="transport">Transport</option>
+          {targetTypeOptions.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
         </select>
         <select
           value={priorityFilter}
           onChange={(e) => {
             const v = e.target.value;
             const params: Record<string, string> = { page: "1" };
-            if (search) params.search = search;
-            if (categoryFilter) params.category = categoryFilter;
+            if (searchInput) params.search = searchInput;
+            if (targetTypeFilter) params.target_type = targetTypeFilter;
             if (v) params.priority = v;
             setSearchParams(params);
           }}
@@ -131,7 +139,7 @@ export default function AnnouncementsPage() {
         <button type="submit" className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
           Search
         </button>
-        {(search || categoryFilter || priorityFilter) && (
+        {(search || priorityFilter || targetTypeFilter) && (
           <button
             type="button"
             onClick={() => { setSearchInput(""); setSearchParams({ page: "1" }); }}
@@ -148,9 +156,8 @@ export default function AnnouncementsPage() {
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Title</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Category</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Target</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Priority</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Language</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Publish</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Expiry</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
@@ -158,9 +165,9 @@ export default function AnnouncementsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading...</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No announcements found.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">No announcements found.</td></tr>
               ) : (
                 items.map((a) => (
                   <tr key={a.id} className="border-b border-gray-100 hover:bg-gray-50">
@@ -170,8 +177,9 @@ export default function AnnouncementsPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full capitalize ${categoryColors[a.category]}`}>
-                        {a.category}
+                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full capitalize ${targetColors[a.target_type]}`}>
+                        {a.target_type === "all" ? "All" : a.target_type}
+                        {a.target_id ? ` #${a.target_id}` : ""}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -179,7 +187,6 @@ export default function AnnouncementsPage() {
                         {a.priority}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 uppercase">{a.language}</td>
                     <td className="px-4 py-3 text-gray-600">{new Date(a.publish_date).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-gray-600">{new Date(a.expiry_date).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-right">

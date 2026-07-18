@@ -4,7 +4,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class AccommodationCreate(BaseModel):
-    pilgrim_id: int = Field(..., description="Pilgrim user ID")
     hotel_name: str = Field(..., min_length=1, max_length=255, description="Hotel name", examples=["Hilton Suites Makkah"])
     city: str = Field(..., min_length=1, max_length=100, description="City name", examples=["Makkah"])
     building: str | None = Field(default=None, max_length=100, description="Building name or number", examples=["Tower A"])
@@ -17,7 +16,6 @@ class AccommodationCreate(BaseModel):
 
 
 class AccommodationUpdate(BaseModel):
-    pilgrim_id: int | None = Field(default=None, description="Reassign to another pilgrim")
     hotel_name: str | None = Field(default=None, min_length=1, max_length=255, description="Hotel name")
     city: str | None = Field(default=None, min_length=1, max_length=100, description="City name")
     building: str | None = Field(default=None, max_length=100, description="Building name")
@@ -31,7 +29,6 @@ class AccommodationUpdate(BaseModel):
 
 class AccommodationResponse(BaseModel):
     id: int = Field(..., description="Unique accommodation identifier")
-    pilgrim_id: int = Field(..., description="Assigned pilgrim ID")
     hotel_name: str = Field(..., description="Hotel name")
     city: str = Field(..., description="City name")
     building: str | None = Field(default=None, description="Building name")
@@ -41,19 +38,14 @@ class AccommodationResponse(BaseModel):
     address: str | None = Field(default=None, description="Full address")
     check_in: datetime = Field(..., description="Check-in datetime (UTC)")
     check_out: datetime = Field(..., description="Check-out datetime (UTC)")
-    created_at: str = Field(..., description="Record creation timestamp")
-    updated_at: str = Field(..., description="Last update timestamp")
+    created_at: datetime = Field(..., description="Record creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class AccommodationWithPilgrim(AccommodationResponse):
-    pilgrim_name: str | None = Field(default=None, description="Pilgrim full name")
-    pilgrim_email: str | None = Field(default=None, description="Pilgrim email address")
-
-
 class PaginatedAccommodations(BaseModel):
-    items: list[AccommodationWithPilgrim] = Field(..., description="List of accommodation records")
+    items: list[AccommodationResponse] = Field(..., description="List of accommodation records")
     total: int = Field(..., description="Total number of matching records")
     page: int = Field(..., description="Current page number")
     size: int = Field(..., description="Page size")

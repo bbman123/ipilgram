@@ -1,14 +1,14 @@
-import math
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.api.deps import require_role
 from app.core.security import hash_password
 from app.models.user import User, Role
+from app.schemas.common import PaginationParams, SortingParams, paginate
 from app.schemas.pilgrim import (
     PaginatedPilgrims,
     PilgrimCreate,
@@ -18,12 +18,14 @@ from app.schemas.pilgrim import (
 
 router = APIRouter(prefix="/pilgrims", tags=["Pilgrims"])
 
+ALLOWED_SORT_FIELDS = ["id", "full_name", "email", "created_at"]
+
 
 @router.get(
     "",
     response_model=PaginatedPilgrims,
     summary="List all pilgrims",
-    description="Retrieve a paginated list of pilgrims. Supports search across name, email, phone, nationality, and passport number.",
+    description="Retrieve a paginated list of pilgrims. Supports search, sorting, and pagination.",
     responses={
         200: {"description": "Paginated list of pilgrims"},
         401: {"description": "Authentication required"},
@@ -33,8 +35,8 @@ router = APIRouter(prefix="/pilgrims", tags=["Pilgrims"])
 def list_pilgrims(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
-    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
-    size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    pagination: Annotated[PaginationParams, Depends()],
+    sorting: Annotated[SortingParams, Depends()],
     search: str = Query("", max_length=255, description="Search across name, email, phone, nationality, passport"),
 ):
     query = db.query(User).filter(User.role == Role.pilgrim)
@@ -51,17 +53,15 @@ def list_pilgrims(
             )
         )
 
-    total = query.count()
-    pages = math.ceil(total / size) if total > 0 else 1
-    items = (
-        query.order_by(User.id.desc())
-        .offset((page - 1) * size)
-        .limit(size)
-        .all()
-    )
+    query = sorting.apply(query, User, ALLOWED_SORT_FIELDS)
+    result = paginate(query, pagination)
 
     return PaginatedPilgrims(
-        items=items, total=total, page=page, size=size, pages=pages
+        items=[PilgrimResponse.model_validate(u) for u in result["items"]],
+        total=result["total"],
+        page=result["page"],
+        size=result["size"],
+        pages=result["pages"],
     )
 
 
@@ -91,7 +91,7 @@ def get_pilgrim(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Pilgrim not found"
         )
-    return user
+    return PilgrimResponse.model_validate(user)
 
 
 @router.post(
@@ -131,7 +131,7 @@ def create_pilgrim(
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return PilgrimResponse.model_validate(user)
 
 
 @router.put(
@@ -178,7 +178,7 @@ def update_pilgrim(
 
     db.commit()
     db.refresh(user)
-    return user
+    return PilgrimResponse.model_validate(user)
 
 
 @router.delete(

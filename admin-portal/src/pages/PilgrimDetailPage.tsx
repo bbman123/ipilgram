@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { getPilgrim, deletePilgrim, type Pilgrim } from "../api/pilgrims";
+import { getPackage, type PackageDetail } from "../api/packages";
 
 export default function PilgrimDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [pilgrim, setPilgrim] = useState<Pilgrim | null>(null);
+  const [pkg, setPkg] = useState<PackageDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -13,7 +15,12 @@ export default function PilgrimDetailPage() {
   useEffect(() => {
     if (!id) return;
     getPilgrim(Number(id))
-      .then(setPilgrim)
+      .then((p) => {
+        setPilgrim(p);
+        if (p.package_id) {
+          getPackage(p.package_id).then(setPkg).catch(() => {});
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
@@ -99,6 +106,48 @@ export default function PilgrimDetailPage() {
           )}
         </div>
       </div>
+
+      {pkg && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mt-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Assigned Package</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Package Name</div>
+              <Link to={`/packages/${pkg.id}`} className="text-sm text-emerald-600 hover:text-emerald-800">{pkg.name}</Link>
+            </div>
+            {pkg.description && (
+              <div className="sm:col-span-2">
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Description</div>
+                <div className="text-sm text-gray-900">{pkg.description}</div>
+              </div>
+            )}
+            {pkg.flight && (
+              <div>
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Flight</div>
+                <Link to={`/flights/${pkg.flight.id}`} className="text-sm text-emerald-600 hover:text-emerald-800">
+                  {pkg.flight.flight_number} ({pkg.flight.airline})
+                </Link>
+              </div>
+            )}
+            {pkg.accommodation && (
+              <div>
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Accommodation</div>
+                <Link to={`/accommodations/${pkg.accommodation.id}`} className="text-sm text-emerald-600 hover:text-emerald-800">
+                  {pkg.accommodation.hotel_name} (Room {pkg.accommodation.room_number})
+                </Link>
+              </div>
+            )}
+            {pkg.transport && (
+              <div>
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Transport</div>
+                <Link to={`/transports/${pkg.transport.id}`} className="text-sm text-emerald-600 hover:text-emerald-800">
+                  {pkg.transport.bus_number} ({pkg.transport.driver_name})
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {showDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">

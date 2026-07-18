@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.user import Role
@@ -30,7 +32,7 @@ class UserResponse(BaseModel):
     full_name: str = Field(..., description="Full name")
     role: Role = Field(..., description="User role (admin or pilgrim)")
     is_active: bool = Field(..., description="Whether the account is active")
-    created_at: str = Field(default="", description="Account creation timestamp")
-    updated_at: str = Field(default="", description="Last update timestamp")
+    created_at: datetime = Field(..., description="Account creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,51 +1,31 @@
-import math
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.api.deps import require_role
 from app.models.user import User, Role
 from app.models.accommodation import Accommodation
+from app.schemas.common import PaginationParams, SortingParams, paginate
 from app.schemas.accommodation import (
     AccommodationCreate,
     AccommodationResponse,
     AccommodationUpdate,
-    AccommodationWithPilgrim,
     PaginatedAccommodations,
 )
 
 router = APIRouter(prefix="/accommodations", tags=["Accommodations"])
 
-
-def _with_pilgrim(acc: Accommodation, db: Session) -> AccommodationWithPilgrim:
-    pilgrim = db.query(User).filter(User.id == acc.pilgrim_id).first()
-    return AccommodationWithPilgrim(
-        id=acc.id,
-        pilgrim_id=acc.pilgrim_id,
-        hotel_name=acc.hotel_name,
-        city=acc.city,
-        building=acc.building,
-        floor=acc.floor,
-        room_number=acc.room_number,
-        bed_number=acc.bed_number,
-        address=acc.address,
-        check_in=acc.check_in,
-        check_out=acc.check_out,
-        created_at=str(acc.created_at),
-        updated_at=str(acc.updated_at),
-        pilgrim_name=pilgrim.full_name if pilgrim else None,
-        pilgrim_email=pilgrim.email if pilgrim else None,
-    )
+ALLOWED_SORT_FIELDS = ["id", "hotel_name", "city", "check_in", "check_out", "created_at"]
 
 
 @router.get(
     "",
     response_model=PaginatedAccommodations,
     summary="List all accommodations",
-    description="Retrieve a paginated list of accommodations. Supports search and filtering by pilgrim and city.",
+    description="Retrieve a paginated list of accommodations. Supports search, sorting, and filtering by city.",
     responses={
         200: {"description": "Paginated list of accommodations"},
         401: {"description": "Authentication required"},
@@ -55,57 +35,45 @@ def _with_pilgrim(acc: Accommodation, db: Session) -> AccommodationWithPilgrim:
 def list_accommodations(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
-    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
-    size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
-    search: str = Query("", max_length=255, description="Search across hotel, city, room, pilgrim name/email"),
-    pilgrim_id: int | None = Query(None, description="Filter by assigned pilgrim ID"),
+    pagination: Annotated[PaginationParams, Depends()],
+    sorting: Annotated[SortingParams, Depends()],
+    search: str = Query("", max_length=255, description="Search across hotel, city, room"),
     city: str | None = Query(None, description="Filter by city name (partial match)"),
 ):
     query = db.query(Accommodation)
 
     if search:
         pattern = f"%{search}%"
-        query = query.join(User, Accommodation.pilgrim_id == User.id, isouter=True).filter(
+        query = query.filter(
             or_(
                 Accommodation.hotel_name.ilike(pattern),
                 Accommodation.city.ilike(pattern),
                 Accommodation.room_number.ilike(pattern),
-                User.full_name.ilike(pattern),
-                User.email.ilike(pattern),
             )
         )
-
-    if pilgrim_id:
-        query = query.filter(Accommodation.pilgrim_id == pilgrim_id)
 
     if city:
         query = query.filter(Accommodation.city.ilike(f"%{city}%"))
 
-    total = query.count()
-    pages = math.ceil(total / size) if total > 0 else 1
-    items = (
-        query.order_by(Accommodation.created_at.desc())
-        .offset((page - 1) * size)
-        .limit(size)
-        .all()
-    )
+    query = sorting.apply(query, Accommodation, ALLOWED_SORT_FIELDS)
+    result = paginate(query, pagination)
 
     return PaginatedAccommodations(
-        items=[_with_pilgrim(a, db) for a in items],
-        total=total,
-        page=page,
-        size=size,
-        pages=pages,
+        items=[AccommodationResponse.model_validate(a) for a in result["items"]],
+        total=result["total"],
+        page=result["page"],
+        size=result["size"],
+        pages=result["pages"],
     )
 
 
 @router.get(
     "/{accommodation_id}",
-    response_model=AccommodationWithPilgrim,
+    response_model=AccommodationResponse,
     summary="Get accommodation by ID",
-    description="Retrieve a single accommodation record with pilgrim details.",
+    description="Retrieve a single accommodation record.",
     responses={
-        200: {"description": "Accommodation record with pilgrim info"},
+        200: {"description": "Accommodation record"},
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
         404: {"description": "Accommodation not found"},
@@ -121,21 +89,20 @@ def get_accommodation(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found"
         )
-    return _with_pilgrim(acc, db)
+    return AccommodationResponse.model_validate(acc)
 
 
 @router.post(
     "",
-    response_model=AccommodationWithPilgrim,
+    response_model=AccommodationResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new accommodation",
-    description="Register a new accommodation booking for a pilgrim. Validates pilgrim exists and check-out is after check-in.",
+    description="Register a new accommodation record. Validates check-out is after check-in.",
     responses={
         201: {"description": "Accommodation created successfully"},
         400: {"description": "Check-out must be after check-in"},
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
-        404: {"description": "Pilgrim not found"},
     },
 )
 def create_accommodation(
@@ -143,16 +110,6 @@ def create_accommodation(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
-    pilgrim = (
-        db.query(User)
-        .filter(User.id == body.pilgrim_id, User.role == Role.pilgrim)
-        .first()
-    )
-    if not pilgrim:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Pilgrim not found"
-        )
-
     if body.check_out <= body.check_in:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -163,12 +120,12 @@ def create_accommodation(
     db.add(acc)
     db.commit()
     db.refresh(acc)
-    return _with_pilgrim(acc, db)
+    return AccommodationResponse.model_validate(acc)
 
 
 @router.put(
     "/{accommodation_id}",
-    response_model=AccommodationWithPilgrim,
+    response_model=AccommodationResponse,
     summary="Update accommodation details",
     description="Update an existing accommodation record. Only provided fields are modified.",
     responses={
@@ -176,7 +133,7 @@ def create_accommodation(
         400: {"description": "Check-out must be after check-in"},
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
-        404: {"description": "Accommodation or pilgrim not found"},
+        404: {"description": "Accommodation not found"},
     },
 )
 def update_accommodation(
@@ -193,31 +150,20 @@ def update_accommodation(
 
     update_data = body.model_dump(exclude_unset=True)
 
-    if "pilgrim_id" in update_data:
-        pilgrim = (
-            db.query(User)
-            .filter(User.id == update_data["pilgrim_id"], User.role == Role.pilgrim)
-            .first()
-        )
-        if not pilgrim:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Pilgrim not found"
-            )
-
-    for field, value in update_data.items():
-        setattr(acc, field, value)
-
-    ci = acc.check_in
-    co = acc.check_out
+    ci = update_data.get("check_in", acc.check_in)
+    co = update_data.get("check_out", acc.check_out)
     if ci and co and co <= ci:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Check-out must be after check-in",
         )
 
+    for field, value in update_data.items():
+        setattr(acc, field, value)
+
     db.commit()
     db.refresh(acc)
-    return _with_pilgrim(acc, db)
+    return AccommodationResponse.model_validate(acc)
 
 
 @router.delete(

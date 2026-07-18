@@ -63,8 +63,6 @@ export default function AccommodationDetailPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {[
-            { label: "Pilgrim", value: acc.pilgrim_name || "-" },
-            { label: "Pilgrim Email", value: acc.pilgrim_email || "-" },
             { label: "City", value: acc.city },
             { label: "Building", value: acc.building || "-" },
             { label: "Floor", value: acc.floor || "-" },

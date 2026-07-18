@@ -3,7 +3,8 @@ from app.models.refresh_token import RefreshToken
 from app.models.flight import Flight, FlightStatus
 from app.models.accommodation import Accommodation
 from app.models.transport import Transport, TransportType
-from app.models.announcement import Announcement, AnnouncementCategory, AnnouncementPriority
+from app.models.package import Package
+from app.models.announcement import Announcement, TargetType, AnnouncementPriority
 from app.models.preference import Preference, PreferredLanguage, DeliveryMode
 from app.models.notification import Notification, NotificationType, NotificationStatus, DeviceToken
 
@@ -12,7 +13,8 @@ __all__ = [
     "Flight", "FlightStatus",
     "Accommodation",
     "Transport", "TransportType",
-    "Announcement", "AnnouncementCategory", "AnnouncementPriority",
+    "Package",
+    "Announcement", "TargetType", "AnnouncementPriority",
     "Preference", "PreferredLanguage", "DeliveryMode",
     "Notification", "NotificationType", "NotificationStatus", "DeviceToken",
 ]

@@ -1,4 +1,5 @@
 import enum
+from datetime import datetime
 
 from sqlalchemy import String, Integer, ForeignKey, DateTime, Enum, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
@@ -36,9 +37,9 @@ class Notification(Base):
         Enum(NotificationStatus), default=NotificationStatus.pending
     )
     fcm_response: Mapped[str | None] = mapped_column(Text, nullable=True)
-    sent_at: Mapped[str | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[str] = mapped_column(server_default=func.now())
-    updated_at: Mapped[str] = mapped_column(
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )
 
@@ -53,7 +54,7 @@ class DeviceToken(Base):
     token: Mapped[str] = mapped_column(String(512), unique=True)
     platform: Mapped[str] = mapped_column(String(20), default="android")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[str] = mapped_column(server_default=func.now())
-    updated_at: Mapped[str] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )

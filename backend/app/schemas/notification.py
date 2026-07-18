@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from app.models.notification import NotificationType, NotificationStatus
@@ -18,8 +20,8 @@ class NotificationResponse(BaseModel):
     pilgrim_id: int | None = Field(default=None, description="Target pilgrim ID (null for broadcasts)")
     is_broadcast: bool = Field(..., description="Whether this was a broadcast notification")
     status: NotificationStatus = Field(..., description="Delivery status")
-    sent_at: str | None = Field(default=None, description="Timestamp when sent")
-    created_at: str = Field(..., description="Record creation timestamp")
+    sent_at: datetime | None = Field(default=None, description="Timestamp when sent")
+    created_at: datetime = Field(..., description="Record creation timestamp")
 
     model_config = {"from_attributes": True}
 
@@ -43,5 +45,6 @@ class DeviceTokenResponse(BaseModel):
     token: str = Field(..., description="Device token value")
     platform: str = Field(..., description="Device platform")
     is_active: bool = Field(..., description="Whether the token is active")
+    created_at: datetime = Field(..., description="Record creation timestamp")
 
     model_config = {"from_attributes": True}

@@ -5,6 +5,7 @@ import {
   updatePilgrim,
   type Pilgrim,
 } from "../api/pilgrims";
+import { listPackages, type Package } from "../api/packages";
 
 export default function PilgrimEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +14,7 @@ export default function PilgrimEditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [pilgrim, setPilgrim] = useState<Pilgrim | null>(null);
+  const [packages, setPackages] = useState<Package[]>([]);
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -21,11 +23,14 @@ export default function PilgrimEditPage() {
   const [passportNumber, setPassportNumber] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [packageId, setPackageId] = useState("");
 
   useEffect(() => {
-    if (!id) return;
-    getPilgrim(Number(id))
-      .then((p) => {
+    Promise.all([
+      id ? getPilgrim(Number(id)) : Promise.reject(),
+      listPackages(1, 100).then((d) => setPackages(d.items)),
+    ])
+      .then(([p]) => {
         setPilgrim(p);
         setEmail(p.email);
         setFullName(p.full_name);
@@ -34,6 +39,7 @@ export default function PilgrimEditPage() {
         setPassportNumber(p.passport_number || "");
         setEmergencyContact(p.emergency_contact || "");
         setIsActive(p.is_active);
+        setPackageId(p.package_id ? String(p.package_id) : "");
       })
       .catch(() => setError("Failed to load pilgrim"))
       .finally(() => setLoading(false));
@@ -53,6 +59,7 @@ export default function PilgrimEditPage() {
         passport_number: passportNumber || undefined,
         emergency_contact: emergencyContact || undefined,
         is_active: isActive,
+        package_id: packageId ? Number(packageId) : null,
       });
       navigate(`/pilgrims/${id}`);
     } catch {
@@ -122,6 +129,16 @@ export default function PilgrimEditPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Hajj Package</label>
+            <select value={packageId} onChange={(e) => setPackageId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="">No package assigned</option>
+              {packages.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
             </select>
           </div>
         </div>

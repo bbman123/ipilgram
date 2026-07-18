@@ -1,6 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { createAnnouncement } from "../api/announcements";
+import { createAnnouncement, type TargetType } from "../api/announcements";
+import { listFlights } from "../api/flights";
+import { listAccommodations } from "../api/accommodations";
+import { listTransports } from "../api/transports";
+import { listPackages } from "../api/packages";
+import { listPilgrims } from "../api/pilgrims";
+
+interface EntityOption { id: number; label: string; }
+
+const targetTypeOptions: { value: TargetType; label: string; color: string }[] = [
+  { value: "all", label: "All Pilgrims", color: "bg-indigo-100 text-indigo-700" },
+  { value: "pilgrim", label: "Individual Pilgrim", color: "bg-emerald-100 text-emerald-700" },
+  { value: "package", label: "Package", color: "bg-amber-100 text-amber-700" },
+  { value: "flight", label: "Flight", color: "bg-blue-100 text-blue-700" },
+  { value: "accommodation", label: "Accommodation", color: "bg-teal-100 text-teal-700" },
+  { value: "transport", label: "Transport", color: "bg-orange-100 text-orange-700" },
+];
+
+const priorityOptions = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
+];
 
 export default function AnnouncementNewPage() {
   const navigate = useNavigate();
@@ -10,11 +33,49 @@ export default function AnnouncementNewPage() {
 
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [category, setCategory] = useState("general");
-  const [language, setLanguage] = useState("en");
   const [priority, setPriority] = useState("medium");
+  const [targetType, setTargetType] = useState<TargetType>("all");
+  const [targetId, setTargetId] = useState<number | "">("");
   const [publishDate, setPublishDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
+
+  const [entityOptions, setEntityOptions] = useState<EntityOption[]>([]);
+  const [loadingEntities, setLoadingEntities] = useState(false);
+
+  useEffect(() => {
+    if (targetType === "all") {
+      setTargetId("");
+      setEntityOptions([]);
+      return;
+    }
+    setLoadingEntities(true);
+    const loaders: Record<string, () => Promise<EntityOption[]>> = {
+      pilgrim: async () => {
+        const d = await listPilgrims(1, 500);
+        return d.items.map((p: any) => ({ id: p.id, label: `${p.full_name} (${p.email})` }));
+      },
+      package: async () => {
+        const d = await listPackages(1, 500);
+        return d.items.map((p: any) => ({ id: p.id, label: p.name }));
+      },
+      flight: async () => {
+        const d = await listFlights(1, 500);
+        return d.items.map((f: any) => ({ id: f.id, label: `${f.flight_number} — ${f.airline}` }));
+      },
+      accommodation: async () => {
+        const d = await listAccommodations(1, 500);
+        return d.items.map((a: any) => ({ id: a.id, label: `${a.hotel_name} — Rm ${a.room_number}, ${a.city}` }));
+      },
+      transport: async () => {
+        const d = await listTransports(1, 500);
+        return d.items.map((t: any) => ({ id: t.id, label: `${t.bus_number} — ${t.pickup_location} to ${t.destination}` }));
+      },
+    };
+    loaders[targetType]()
+      .then(setEntityOptions)
+      .catch(() => setEntityOptions([]))
+      .finally(() => setLoadingEntities(false));
+  }, [targetType]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,9 +85,9 @@ export default function AnnouncementNewPage() {
       const a = await createAnnouncement({
         title,
         message,
-        category: category as "general",
-        language,
-        priority: priority as "medium",
+        priority: priority as any,
+        target_type: targetType,
+        target_id: targetType === "all" ? null : (targetId as number),
         publish_date: publishDate,
         expiry_date: expiryDate,
       });
@@ -37,6 +98,9 @@ export default function AnnouncementNewPage() {
       setSaving(false);
     }
   }
+
+  const targetInfo = targetTypeOptions.find((t) => t.value === targetType);
+  const selectedEntity = entityOptions.find((e) => e.id === targetId);
 
   return (
     <div className="max-w-2xl">
@@ -56,21 +120,17 @@ export default function AnnouncementNewPage() {
       {showPreview ? (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-4">
-            <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
-              category === "emergency" ? "bg-red-100 text-red-700" :
-              category === "flight" ? "bg-blue-100 text-blue-700" :
-              category === "accommodation" ? "bg-teal-100 text-teal-700" :
-              category === "transport" ? "bg-orange-100 text-orange-700" :
-              "bg-gray-100 text-gray-700"
-            }`}>{category}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${targetInfo?.color}`}>{targetInfo?.label}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
               priority === "urgent" ? "bg-red-100 text-red-700" :
               priority === "high" ? "bg-amber-100 text-amber-700" :
               priority === "medium" ? "bg-blue-100 text-blue-600" :
               "bg-gray-100 text-gray-600"
             }`}>{priority}</span>
-            <span className="text-xs text-gray-500 uppercase">{language}</span>
           </div>
+          {targetType !== "all" && selectedEntity && (
+            <p className="text-xs text-gray-500 mb-2">Target: {selectedEntity.label}</p>
+          )}
           <h2 className="text-xl font-bold text-gray-900 mb-3">{title || "Untitled"}</h2>
           <div className="text-sm text-gray-700 whitespace-pre-wrap mb-4">{message || "No message content."}</div>
           <div className="flex gap-4 text-xs text-gray-500 border-t border-gray-200 pt-3">
@@ -100,37 +160,42 @@ export default function AnnouncementNewPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="general">General</option>
-                <option value="emergency">Emergency</option>
-                <option value="flight">Flight</option>
-                <option value="accommodation">Accommodation</option>
-                <option value="transport">Transport</option>
-              </select>
-            </div>
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Priority *</label>
               <select value={priority} onChange={(e) => setPriority(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
+                {priorityOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
-              <select value={language} onChange={(e) => setLanguage(e.target.value)}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Target Audience *</label>
+              <select value={targetType} onChange={(e) => setTargetType(e.target.value as TargetType)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="en">English</option>
-                <option value="ar">Arabic</option>
-                <option value="ha">Hausa</option>
-                <option value="fr">French</option>
+                {targetTypeOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
             </div>
-            <div></div>
+            {targetType !== "all" && (
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Target {targetType.charAt(0).toUpperCase() + targetType.slice(1)} *
+                </label>
+                {loadingEntities ? (
+                  <div className="text-sm text-gray-500 py-2">Loading entities...</div>
+                ) : (
+                  <select value={targetId} onChange={(e) => setTargetId(Number(e.target.value))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="">Select {targetType}...</option>
+                    {entityOptions.map((e) => (
+                      <option key={e.id} value={e.id}>{e.label}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Publish Date *</label>
               <input type="datetime-local" value={publishDate} onChange={(e) => setPublishDate(e.target.value)} required

@@ -71,8 +71,6 @@ export default function TransportDetailPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {[
-            { label: "Pilgrim", value: t.pilgrim_name || "-" },
-            { label: "Pilgrim Email", value: t.pilgrim_email || "-" },
             { label: "Bus/Vehicle Number", value: t.bus_number },
             { label: "Transport Type", value: t.transport_type, badge: true },
             { label: "Pickup Location", value: t.pickup_location },

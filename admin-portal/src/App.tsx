@@ -20,6 +20,10 @@ import TransportsPage from "./pages/TransportsPage";
 import TransportNewPage from "./pages/TransportNewPage";
 import TransportDetailPage from "./pages/TransportDetailPage";
 import TransportEditPage from "./pages/TransportEditPage";
+import PackagesPage from "./pages/PackagesPage";
+import PackageNewPage from "./pages/PackageNewPage";
+import PackageDetailPage from "./pages/PackageDetailPage";
+import PackageEditPage from "./pages/PackageEditPage";
 import AnnouncementsPage from "./pages/AnnouncementsPage";
 import AnnouncementNewPage from "./pages/AnnouncementNewPage";
 import AnnouncementDetailPage from "./pages/AnnouncementDetailPage";
@@ -57,6 +61,10 @@ function App() {
             <Route path="transports/new" element={<TransportNewPage />} />
             <Route path="transports/:id" element={<TransportDetailPage />} />
             <Route path="transports/:id/edit" element={<TransportEditPage />} />
+            <Route path="packages" element={<PackagesPage />} />
+            <Route path="packages/new" element={<PackageNewPage />} />
+            <Route path="packages/:id" element={<PackageDetailPage />} />
+            <Route path="packages/:id/edit" element={<PackageEditPage />} />
             <Route path="announcements" element={<AnnouncementsPage />} />
             <Route path="announcements/new" element={<AnnouncementNewPage />} />
             <Route path="announcements/:id" element={<AnnouncementDetailPage />} />

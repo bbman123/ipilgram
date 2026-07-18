@@ -1,15 +1,15 @@
 import apiClient from "./client";
 
-export type AnnouncementCategory = "emergency" | "general" | "flight" | "accommodation" | "transport";
+export type TargetType = "all" | "pilgrim" | "package" | "flight" | "accommodation" | "transport";
 export type AnnouncementPriority = "low" | "medium" | "high" | "urgent";
 
 export interface Announcement {
   id: number;
   title: string;
   message: string;
-  category: AnnouncementCategory;
-  language: string;
   priority: AnnouncementPriority;
+  target_type: TargetType;
+  target_id: number | null;
   publish_date: string;
   expiry_date: string;
   created_at: string;
@@ -27,9 +27,9 @@ export interface PaginatedAnnouncements {
 export interface AnnouncementCreateData {
   title: string;
   message: string;
-  category: AnnouncementCategory;
-  language?: string;
   priority?: AnnouncementPriority;
+  target_type: TargetType;
+  target_id?: number | null;
   publish_date: string;
   expiry_date: string;
 }
@@ -37,9 +37,9 @@ export interface AnnouncementCreateData {
 export interface AnnouncementUpdateData {
   title?: string;
   message?: string;
-  category?: AnnouncementCategory;
-  language?: string;
   priority?: AnnouncementPriority;
+  target_type?: TargetType;
+  target_id?: number | null;
   publish_date?: string;
   expiry_date?: string;
 }
@@ -48,16 +48,24 @@ export async function listAnnouncements(
   page = 1,
   size = 20,
   search = "",
-  category?: string,
   priority?: string,
-  language?: string
+  targetType?: string,
 ): Promise<PaginatedAnnouncements> {
   const params: Record<string, string | number> = { page, size };
   if (search) params.search = search;
-  if (category) params.category = category;
   if (priority) params.priority = priority;
-  if (language) params.language = language;
+  if (targetType) params.target_type = targetType;
   const { data } = await apiClient.get<PaginatedAnnouncements>("/announcements", { params });
+  return data;
+}
+
+export async function getActiveAnnouncements(): Promise<Announcement[]> {
+  const { data } = await apiClient.get<Announcement[]>("/announcements/active");
+  return data;
+}
+
+export async function getMyAnnouncements(): Promise<Announcement[]> {
+  const { data } = await apiClient.get<Announcement[]>("/announcements/my");
   return data;
 }
 

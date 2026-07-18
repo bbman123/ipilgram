@@ -1,14 +1,14 @@
-import math
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.api.deps import require_role
 from app.models.user import User, Role
 from app.models.preference import Preference
+from app.schemas.common import PaginationParams, SortingParams, paginate
 from app.schemas.preference import (
     PreferenceCreate,
     PreferenceResponse,
@@ -19,9 +19,10 @@ from app.schemas.preference import (
 
 router = APIRouter(prefix="/preferences", tags=["Preferences"])
 
+ALLOWED_SORT_FIELDS = ["id", "preferred_language", "delivery_mode", "font_size", "created_at"]
 
-def _with_pilgrim(pref: Preference, db: Session) -> PreferenceWithPilgrim:
-    pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
+
+def _enrich_pref(pref: Preference, pilgrim: User | None) -> PreferenceWithPilgrim:
     return PreferenceWithPilgrim(
         id=pref.id,
         pilgrim_id=pref.pilgrim_id,
@@ -29,8 +30,8 @@ def _with_pilgrim(pref: Preference, db: Session) -> PreferenceWithPilgrim:
         delivery_mode=pref.delivery_mode,
         font_size=pref.font_size,
         notifications_enabled=pref.notifications_enabled,
-        created_at=str(pref.created_at),
-        updated_at=str(pref.updated_at),
+        created_at=pref.created_at,
+        updated_at=pref.updated_at,
         pilgrim_name=pilgrim.full_name if pilgrim else None,
         pilgrim_email=pilgrim.email if pilgrim else None,
     )
@@ -40,7 +41,7 @@ def _with_pilgrim(pref: Preference, db: Session) -> PreferenceWithPilgrim:
     "",
     response_model=PaginatedPreferences,
     summary="List all preferences",
-    description="Retrieve a paginated list of pilgrim preferences. Supports search and filtering by language and delivery mode.",
+    description="Retrieve a paginated list of pilgrim preferences. Supports search, sorting, and filtering by language and delivery mode.",
     responses={
         200: {"description": "Paginated list of preferences"},
         401: {"description": "Authentication required"},
@@ -50,12 +51,12 @@ def _with_pilgrim(pref: Preference, db: Session) -> PreferenceWithPilgrim:
 def list_preferences(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
-    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
-    size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    pagination: Annotated[PaginationParams, Depends()],
+    sorting: Annotated[SortingParams, Depends()],
     search: str = Query("", max_length=255, description="Search by pilgrim name or email"),
     pilgrim_id: int | None = Query(None, description="Filter by pilgrim ID"),
     language: str | None = Query(None, description="Filter by preferred language"),
-    delivery_mode: str | None = Query(None, alias="delivery_mode", description="Filter by delivery mode"),
+    delivery_mode: str | None = Query(None, description="Filter by delivery mode"),
 ):
     query = db.query(Preference)
 
@@ -77,21 +78,21 @@ def list_preferences(
     if delivery_mode:
         query = query.filter(Preference.delivery_mode == delivery_mode)
 
-    total = query.count()
-    pages = math.ceil(total / size) if total > 0 else 1
-    items = (
-        query.order_by(Preference.created_at.desc())
-        .offset((page - 1) * size)
-        .limit(size)
-        .all()
-    )
+    query = sorting.apply(query, Preference, ALLOWED_SORT_FIELDS)
+    result = paginate(query, pagination)
+
+    pilgrim_ids = [p.pilgrim_id for p in result["items"]]
+    pilgrims = {}
+    if pilgrim_ids:
+        users = db.query(User).filter(User.id.in_(pilgrim_ids)).all()
+        pilgrims = {u.id: u for u in users}
 
     return PaginatedPreferences(
-        items=[_with_pilgrim(p, db) for p in items],
-        total=total,
-        page=page,
-        size=size,
-        pages=pages,
+        items=[_enrich_pref(p, pilgrims.get(p.pilgrim_id)) for p in result["items"]],
+        total=result["total"],
+        page=result["page"],
+        size=result["size"],
+        pages=result["pages"],
     )
 
 
@@ -117,7 +118,8 @@ def get_preference(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Preference not found"
         )
-    return _with_pilgrim(pref, db)
+    pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
+    return _enrich_pref(pref, pilgrim)
 
 
 @router.get(
@@ -143,7 +145,8 @@ def get_preference_by_pilgrim(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Preference not found for this pilgrim",
         )
-    return _with_pilgrim(pref, db)
+    pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
+    return _enrich_pref(pref, pilgrim)
 
 
 @router.post(
@@ -154,7 +157,7 @@ def get_preference_by_pilgrim(
     description="Set display and notification preferences for a pilgrim. Each pilgrim can only have one preference record.",
     responses={
         201: {"description": "Preference created successfully"},
-        400: {"description": "Preference already exists for this pilgrim, or font size out of range (8-48)"},
+        400: {"description": "Preference already exists for this pilgrim"},
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
         404: {"description": "Pilgrim not found"},
@@ -184,17 +187,11 @@ def create_preference(
             detail="Preference already exists for this pilgrim. Use PUT to update.",
         )
 
-    if body.font_size < 8 or body.font_size > 48:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Font size must be between 8 and 48",
-        )
-
     pref = Preference(**body.model_dump())
     db.add(pref)
     db.commit()
     db.refresh(pref)
-    return _with_pilgrim(pref, db)
+    return _enrich_pref(pref, pilgrim)
 
 
 @router.put(
@@ -224,20 +221,13 @@ def update_preference(
 
     update_data = body.model_dump(exclude_unset=True)
 
-    if "font_size" in update_data:
-        fs = update_data["font_size"]
-        if fs < 8 or fs > 48:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Font size must be between 8 and 48",
-            )
-
     for field, value in update_data.items():
         setattr(pref, field, value)
 
     db.commit()
     db.refresh(pref)
-    return _with_pilgrim(pref, db)
+    pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
+    return _enrich_pref(pref, pilgrim)
 
 
 @router.delete(
