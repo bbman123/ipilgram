@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import String, Boolean, Enum
+from sqlalchemy import String, Boolean, Enum, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -21,6 +21,12 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.pilgrim)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    nationality: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    passport_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    emergency_contact: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[str] = mapped_column(server_default=func.now())
     updated_at: Mapped[str] = mapped_column(
         server_default=func.now(), onupdate=func.now()

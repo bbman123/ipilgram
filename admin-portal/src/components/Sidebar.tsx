@@ -37,7 +37,7 @@ export default function Sidebar() {
 
         <nav className="mt-4 px-3 space-y-1">
           {navItems.map((item) => {
-            const active = location.pathname === item.path;
+            const active = location.pathname === item.path || (item.path === "/pilgrims" && location.pathname.startsWith("/pilgrims"));
             return (
               <Link
                 key={item.path}
