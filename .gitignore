@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend
+backend/alembic/versions/*.py
+!backend/alembic/versions/.gitkeep
+
+# Node / Admin Portal
+node_modules/
+dist/
+.vite/
+
+# Flutter / Mobile
+mobile/.dart_tool/
+mobile/.packages
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+
+# Logs
+*.log
+npm-debug.log*
