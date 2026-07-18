@@ -8,6 +8,10 @@ import PilgrimsPage from "./pages/PilgrimsPage";
 import PilgrimNewPage from "./pages/PilgrimNewPage";
 import PilgrimDetailPage from "./pages/PilgrimDetailPage";
 import PilgrimEditPage from "./pages/PilgrimEditPage";
+import FlightsPage from "./pages/FlightsPage";
+import FlightNewPage from "./pages/FlightNewPage";
+import FlightDetailPage from "./pages/FlightDetailPage";
+import FlightEditPage from "./pages/FlightEditPage";
 
 function App() {
   return (
@@ -27,6 +31,10 @@ function App() {
             <Route path="pilgrims/new" element={<PilgrimNewPage />} />
             <Route path="pilgrims/:id" element={<PilgrimDetailPage />} />
             <Route path="pilgrims/:id/edit" element={<PilgrimEditPage />} />
+            <Route path="flights" element={<FlightsPage />} />
+            <Route path="flights/new" element={<FlightNewPage />} />
+            <Route path="flights/:id" element={<FlightDetailPage />} />
+            <Route path="flights/:id/edit" element={<FlightEditPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
