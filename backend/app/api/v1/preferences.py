@@ -36,16 +36,26 @@ def _with_pilgrim(pref: Preference, db: Session) -> PreferenceWithPilgrim:
     )
 
 
-@router.get("", response_model=PaginatedPreferences)
+@router.get(
+    "",
+    response_model=PaginatedPreferences,
+    summary="List all preferences",
+    description="Retrieve a paginated list of pilgrim preferences. Supports search and filtering by language and delivery mode.",
+    responses={
+        200: {"description": "Paginated list of preferences"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+    },
+)
 def list_preferences(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    search: str = Query("", max_length=255),
-    pilgrim_id: int | None = Query(None),
-    language: str | None = Query(None),
-    delivery_mode: str | None = Query(None, alias="delivery_mode"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    search: str = Query("", max_length=255, description="Search by pilgrim name or email"),
+    pilgrim_id: int | None = Query(None, description="Filter by pilgrim ID"),
+    language: str | None = Query(None, description="Filter by preferred language"),
+    delivery_mode: str | None = Query(None, alias="delivery_mode", description="Filter by delivery mode"),
 ):
     query = db.query(Preference)
 
@@ -85,7 +95,18 @@ def list_preferences(
     )
 
 
-@router.get("/{preference_id}", response_model=PreferenceWithPilgrim)
+@router.get(
+    "/{preference_id}",
+    response_model=PreferenceWithPilgrim,
+    summary="Get preference by ID",
+    description="Retrieve a single preference record with pilgrim details.",
+    responses={
+        200: {"description": "Preference record with pilgrim info"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Preference not found"},
+    },
+)
 def get_preference(
     preference_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -99,7 +120,18 @@ def get_preference(
     return _with_pilgrim(pref, db)
 
 
-@router.get("/by-pilgrim/{pilgrim_id}", response_model=PreferenceWithPilgrim)
+@router.get(
+    "/by-pilgrim/{pilgrim_id}",
+    response_model=PreferenceWithPilgrim,
+    summary="Get preference by pilgrim ID",
+    description="Retrieve preferences for a specific pilgrim by their user ID.",
+    responses={
+        200: {"description": "Preference record"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Preference not found for this pilgrim"},
+    },
+)
 def get_preference_by_pilgrim(
     pilgrim_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -114,7 +146,20 @@ def get_preference_by_pilgrim(
     return _with_pilgrim(pref, db)
 
 
-@router.post("", response_model=PreferenceWithPilgrim, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=PreferenceWithPilgrim,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create pilgrim preferences",
+    description="Set display and notification preferences for a pilgrim. Each pilgrim can only have one preference record.",
+    responses={
+        201: {"description": "Preference created successfully"},
+        400: {"description": "Preference already exists for this pilgrim, or font size out of range (8-48)"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Pilgrim not found"},
+    },
+)
 def create_preference(
     body: PreferenceCreate,
     db: Annotated[Session, Depends(get_db)],
@@ -152,7 +197,19 @@ def create_preference(
     return _with_pilgrim(pref, db)
 
 
-@router.put("/{preference_id}", response_model=PreferenceWithPilgrim)
+@router.put(
+    "/{preference_id}",
+    response_model=PreferenceWithPilgrim,
+    summary="Update pilgrim preferences",
+    description="Update an existing preference record. Only provided fields are modified.",
+    responses={
+        200: {"description": "Preference updated successfully"},
+        400: {"description": "Font size must be between 8 and 48"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Preference not found"},
+    },
+)
 def update_preference(
     preference_id: int,
     body: PreferenceUpdate,
@@ -183,7 +240,18 @@ def update_preference(
     return _with_pilgrim(pref, db)
 
 
-@router.delete("/{preference_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{preference_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete preferences",
+    description="Permanently remove a preference record for a pilgrim.",
+    responses={
+        204: {"description": "Preference deleted"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Preference not found"},
+    },
+)
 def delete_preference(
     preference_id: int,
     db: Annotated[Session, Depends(get_db)],

@@ -1,34 +1,36 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.user import Role
 
 
 class UserRegister(BaseModel):
-    email: str
-    password: str
-    full_name: str
+    email: str = Field(..., min_length=5, max_length=255, description="User email address", examples=["user@example.com"])
+    password: str = Field(..., min_length=6, max_length=128, description="Plain text password", examples=["securepass123"])
+    full_name: str = Field(..., min_length=1, max_length=255, description="Full name", examples=["Ibrahim Abdullahi"])
 
 
 class UserLogin(BaseModel):
-    email: str
-    password: str
+    email: str = Field(..., min_length=5, max_length=255, description="Registered email address")
+    password: str = Field(..., min_length=6, max_length=128, description="Account password")
 
 
 class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
+    access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token for obtaining new access tokens")
+    token_type: str = Field(default="bearer", description="Token type, always 'bearer'")
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(..., description="Valid refresh token")
 
 
 class UserResponse(BaseModel):
-    id: int
-    email: str
-    full_name: str
-    role: Role
-    is_active: bool
+    id: int = Field(..., description="Unique user identifier")
+    email: str = Field(..., description="Email address")
+    full_name: str = Field(..., description="Full name")
+    role: Role = Field(..., description="User role (admin or pilgrim)")
+    is_active: bool = Field(..., description="Whether the account is active")
+    created_at: str = Field(default="", description="Account creation timestamp")
+    updated_at: str = Field(default="", description="Last update timestamp")
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)

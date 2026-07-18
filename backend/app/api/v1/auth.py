@@ -25,7 +25,18 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new pilgrim account",
+    description="Create a new user account with pilgrim role. Email must be unique.",
+    responses={
+        201: {"description": "Account created successfully"},
+        400: {"description": "Email already registered"},
+        422: {"description": "Validation error"},
+    },
+)
 def register(body: UserRegister, db: Annotated[Session, Depends(get_db)]):
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
@@ -44,7 +55,17 @@ def register(body: UserRegister, db: Annotated[Session, Depends(get_db)]):
     return user
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    summary="Authenticate and obtain tokens",
+    description="Login with email and password to receive an access token and refresh token pair.",
+    responses={
+        200: {"description": "Login successful, tokens returned"},
+        401: {"description": "Invalid email or password"},
+        403: {"description": "Account is inactive"},
+    },
+)
 def login(body: UserLogin, db: Annotated[Session, Depends(get_db)]):
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not verify_password(body.password, user.hashed_password):
@@ -69,7 +90,16 @@ def login(body: UserLogin, db: Annotated[Session, Depends(get_db)]):
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    summary="Refresh access token",
+    description="Exchange a valid refresh token for a new access/refresh token pair. The old refresh token is revoked (rotation).",
+    responses={
+        200: {"description": "New token pair issued"},
+        401: {"description": "Invalid, expired, or revoked refresh token"},
+    },
+)
 def refresh(body: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
     payload = decode_token(body.refresh_token)
     if payload is None or payload.get("type") != "refresh":
@@ -108,7 +138,16 @@ def refresh(body: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Revoke refresh token",
+    description="Invalidate a refresh token to log out. The access token remains valid until expiry.",
+    responses={
+        204: {"description": "Refresh token revoked successfully"},
+        401: {"description": "Authentication required"},
+    },
+)
 def logout(
     body: RefreshRequest,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -127,6 +166,15 @@ def logout(
         db.commit()
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Get current user profile",
+    description="Returns the authenticated user's profile information.",
+    responses={
+        200: {"description": "User profile returned"},
+        401: {"description": "Authentication required"},
+    },
+)
 def me(current_user: Annotated[User, Depends(get_current_user)]):
     return current_user

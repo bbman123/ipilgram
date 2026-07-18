@@ -2,7 +2,7 @@ import os
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.deps import require_role
 from app.models.user import User, Role
@@ -25,18 +25,28 @@ def _get_engine() -> PersonalizationEngine:
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="GEMINI_API_KEY not configured",
+            detail="GEMINI_API_KEY not configured. AI personalization is unavailable.",
         )
     provider = GeminiProvider(api_key)
     return PersonalizationEngine(provider)
 
 
-@router.post("/simplify", response_model=SimplifyResponse)
+@router.post(
+    "/simplify",
+    response_model=SimplifyResponse,
+    summary="Simplify announcement text",
+    description="Use AI to rewrite a Hajj announcement in plain, easy-to-understand language. Supports English, Hausa, Yoruba, Igbo, and Arabic.",
+    responses={
+        200: {"description": "Simplified text returned"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        503: {"description": "AI provider not configured"},
+    },
+)
 def simplify_announcement(
     body: SimplifyRequest,
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
-    """Simplify a Hajj announcement into plain, clear language."""
     engine = _get_engine()
     try:
         result = engine.simplify(body.text, body.language.value)
@@ -54,12 +64,22 @@ def simplify_announcement(
     )
 
 
-@router.post("/translate", response_model=TranslateResponse)
+@router.post(
+    "/translate",
+    response_model=TranslateResponse,
+    summary="Translate announcement text",
+    description="Translate Hajj information between supported languages using AI.",
+    responses={
+        200: {"description": "Translated text returned"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        503: {"description": "AI provider not configured"},
+    },
+)
 def translate_announcement(
     body: TranslateRequest,
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
-    """Translate Hajj information between supported languages."""
     engine = _get_engine()
     try:
         result = engine.translate(
@@ -82,12 +102,22 @@ def translate_announcement(
     )
 
 
-@router.post("/process", response_model=ProcessResponse)
+@router.post(
+    "/process",
+    response_model=ProcessResponse,
+    summary="Full AI processing pipeline",
+    description="Run the complete personalization pipeline: simplify text, translate to target language, and optionally prepare audio output.",
+    responses={
+        200: {"description": "Processed result returned"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        503: {"description": "AI provider not configured"},
+    },
+)
 def process_announcement(
     body: ProcessRequest,
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
-    """Full pipeline: simplify + translate → structured JSON output."""
     engine = _get_engine()
     try:
         result = engine.process(
@@ -105,15 +135,24 @@ def process_announcement(
 
 
 class HealthCheckResponse(BaseModel):
-    provider: str
-    configured: bool
+    provider: str = Field(..., description="AI provider name")
+    configured: bool = Field(..., description="Whether API key is set")
 
 
-@router.get("/health", response_model=HealthCheckResponse)
+@router.get(
+    "/health",
+    response_model=HealthCheckResponse,
+    summary="Check AI provider status",
+    description="Verify if the AI personalization provider (Gemini) is configured and available.",
+    responses={
+        200: {"description": "AI provider status"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+    },
+)
 def ai_health(
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
-    """Check if the AI provider is configured."""
     api_key = os.environ.get("GEMINI_API_KEY", "")
     return HealthCheckResponse(
         provider="gemini",

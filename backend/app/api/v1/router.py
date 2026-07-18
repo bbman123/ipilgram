@@ -1,8 +1,14 @@
 from fastapi import APIRouter
+from pydantic import BaseModel
 
-from app.api.v1 import health, auth, pilgrims, flights, accommodations, transports, announcements, preferences, personalize, tts
+from app.api.v1 import health, auth, pilgrims, flights, accommodations, transports, announcements, preferences, personalize, tts, notifications
 
 api_router = APIRouter(prefix="/api/v1")
+
+
+class HealthResponse(BaseModel):
+    status: str
+
 
 api_router.include_router(health.router, tags=["Health"])
 api_router.include_router(auth.router)
@@ -14,3 +20,4 @@ api_router.include_router(announcements.router)
 api_router.include_router(preferences.router)
 api_router.include_router(personalize.router)
 api_router.include_router(tts.router)
+api_router.include_router(notifications.router)

@@ -39,15 +39,25 @@ def _with_pilgrim(t: Transport, db: Session) -> TransportWithPilgrim:
     )
 
 
-@router.get("", response_model=PaginatedTransports)
+@router.get(
+    "",
+    response_model=PaginatedTransports,
+    summary="List all transports",
+    description="Retrieve a paginated list of transport assignments. Supports search and filtering by type and pilgrim.",
+    responses={
+        200: {"description": "Paginated list of transports"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+    },
+)
 def list_transports(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    search: str = Query("", max_length=255),
-    pilgrim_id: int | None = Query(None),
-    transport_type: TransportType | None = Query(None, alias="type"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    search: str = Query("", max_length=255, description="Search across vehicle number, locations, driver, pilgrim name/email"),
+    pilgrim_id: int | None = Query(None, description="Filter by assigned pilgrim ID"),
+    transport_type: TransportType | None = Query(None, alias="type", description="Filter by transport type"),
 ):
     query = db.query(Transport)
 
@@ -88,7 +98,18 @@ def list_transports(
     )
 
 
-@router.get("/{transport_id}", response_model=TransportWithPilgrim)
+@router.get(
+    "/{transport_id}",
+    response_model=TransportWithPilgrim,
+    summary="Get transport by ID",
+    description="Retrieve a single transport record with pilgrim details.",
+    responses={
+        200: {"description": "Transport record with pilgrim info"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Transport not found"},
+    },
+)
 def get_transport(
     transport_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -102,7 +123,19 @@ def get_transport(
     return _with_pilgrim(t, db)
 
 
-@router.post("", response_model=TransportWithPilgrim, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=TransportWithPilgrim,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new transport assignment",
+    description="Register a new ground transport assignment for a pilgrim.",
+    responses={
+        201: {"description": "Transport created successfully"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Pilgrim not found"},
+    },
+)
 def create_transport(
     body: TransportCreate,
     db: Annotated[Session, Depends(get_db)],
@@ -125,7 +158,18 @@ def create_transport(
     return _with_pilgrim(t, db)
 
 
-@router.put("/{transport_id}", response_model=TransportWithPilgrim)
+@router.put(
+    "/{transport_id}",
+    response_model=TransportWithPilgrim,
+    summary="Update transport details",
+    description="Update an existing transport record. Only provided fields are modified.",
+    responses={
+        200: {"description": "Transport updated successfully"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Transport or pilgrim not found"},
+    },
+)
 def update_transport(
     transport_id: int,
     body: TransportUpdate,
@@ -159,7 +203,18 @@ def update_transport(
     return _with_pilgrim(t, db)
 
 
-@router.delete("/{transport_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{transport_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a transport",
+    description="Permanently remove a transport record.",
+    responses={
+        204: {"description": "Transport deleted"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Transport not found"},
+    },
+)
 def delete_transport(
     transport_id: int,
     db: Annotated[Session, Depends(get_db)],

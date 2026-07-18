@@ -23,16 +23,26 @@ from app.schemas.announcement import (
 router = APIRouter(prefix="/announcements", tags=["Announcements"])
 
 
-@router.get("", response_model=PaginatedAnnouncements)
+@router.get(
+    "",
+    response_model=PaginatedAnnouncements,
+    summary="List all announcements",
+    description="Retrieve a paginated list of announcements. Supports search and filtering by category, priority, and language.",
+    responses={
+        200: {"description": "Paginated list of announcements"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+    },
+)
 def list_announcements(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    search: str = Query("", max_length=255),
-    category: AnnouncementCategory | None = Query(None),
-    priority: AnnouncementPriority | None = Query(None),
-    language: str | None = Query(None),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    search: str = Query("", max_length=255, description="Search across title and message"),
+    category: AnnouncementCategory | None = Query(None, description="Filter by category"),
+    priority: AnnouncementPriority | None = Query(None, description="Filter by priority level"),
+    language: str | None = Query(None, description="Filter by language code (e.g. en, ha, ar)"),
 ):
     query = db.query(Announcement)
 
@@ -72,7 +82,18 @@ def list_announcements(
     )
 
 
-@router.get("/{announcement_id}", response_model=AnnouncementResponse)
+@router.get(
+    "/{announcement_id}",
+    response_model=AnnouncementResponse,
+    summary="Get announcement by ID",
+    description="Retrieve a single announcement record.",
+    responses={
+        200: {"description": "Announcement record"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Announcement not found"},
+    },
+)
 def get_announcement(
     announcement_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -86,7 +107,19 @@ def get_announcement(
     return AnnouncementResponse.model_validate(a)
 
 
-@router.post("", response_model=AnnouncementResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=AnnouncementResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new announcement",
+    description="Publish a new announcement. Validates that expiry date is after publish date.",
+    responses={
+        201: {"description": "Announcement created successfully"},
+        400: {"description": "Expiry date must be after publish date"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+    },
+)
 def create_announcement(
     body: AnnouncementCreate,
     db: Annotated[Session, Depends(get_db)],
@@ -105,7 +138,19 @@ def create_announcement(
     return AnnouncementResponse.model_validate(a)
 
 
-@router.put("/{announcement_id}", response_model=AnnouncementResponse)
+@router.put(
+    "/{announcement_id}",
+    response_model=AnnouncementResponse,
+    summary="Update an announcement",
+    description="Update an existing announcement. Only provided fields are modified.",
+    responses={
+        200: {"description": "Announcement updated successfully"},
+        400: {"description": "Expiry date must be after publish date"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Announcement not found"},
+    },
+)
 def update_announcement(
     announcement_id: int,
     body: AnnouncementUpdate,
@@ -133,7 +178,18 @@ def update_announcement(
     return AnnouncementResponse.model_validate(a)
 
 
-@router.delete("/{announcement_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{announcement_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an announcement",
+    description="Permanently remove an announcement record.",
+    responses={
+        204: {"description": "Announcement deleted"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Announcement not found"},
+    },
+)
 def delete_announcement(
     announcement_id: int,
     db: Annotated[Session, Depends(get_db)],

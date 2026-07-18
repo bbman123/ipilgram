@@ -41,15 +41,25 @@ def _with_pilgrim(acc: Accommodation, db: Session) -> AccommodationWithPilgrim:
     )
 
 
-@router.get("", response_model=PaginatedAccommodations)
+@router.get(
+    "",
+    response_model=PaginatedAccommodations,
+    summary="List all accommodations",
+    description="Retrieve a paginated list of accommodations. Supports search and filtering by pilgrim and city.",
+    responses={
+        200: {"description": "Paginated list of accommodations"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+    },
+)
 def list_accommodations(
     db: Annotated[Session, Depends(get_db)],
     _admin: Annotated[User, Depends(require_role(Role.admin))],
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    search: str = Query("", max_length=255),
-    pilgrim_id: int | None = Query(None),
-    city: str | None = Query(None),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    search: str = Query("", max_length=255, description="Search across hotel, city, room, pilgrim name/email"),
+    pilgrim_id: int | None = Query(None, description="Filter by assigned pilgrim ID"),
+    city: str | None = Query(None, description="Filter by city name (partial match)"),
 ):
     query = db.query(Accommodation)
 
@@ -89,7 +99,18 @@ def list_accommodations(
     )
 
 
-@router.get("/{accommodation_id}", response_model=AccommodationWithPilgrim)
+@router.get(
+    "/{accommodation_id}",
+    response_model=AccommodationWithPilgrim,
+    summary="Get accommodation by ID",
+    description="Retrieve a single accommodation record with pilgrim details.",
+    responses={
+        200: {"description": "Accommodation record with pilgrim info"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Accommodation not found"},
+    },
+)
 def get_accommodation(
     accommodation_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -103,7 +124,20 @@ def get_accommodation(
     return _with_pilgrim(acc, db)
 
 
-@router.post("", response_model=AccommodationWithPilgrim, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=AccommodationWithPilgrim,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new accommodation",
+    description="Register a new accommodation booking for a pilgrim. Validates pilgrim exists and check-out is after check-in.",
+    responses={
+        201: {"description": "Accommodation created successfully"},
+        400: {"description": "Check-out must be after check-in"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Pilgrim not found"},
+    },
+)
 def create_accommodation(
     body: AccommodationCreate,
     db: Annotated[Session, Depends(get_db)],
@@ -132,7 +166,19 @@ def create_accommodation(
     return _with_pilgrim(acc, db)
 
 
-@router.put("/{accommodation_id}", response_model=AccommodationWithPilgrim)
+@router.put(
+    "/{accommodation_id}",
+    response_model=AccommodationWithPilgrim,
+    summary="Update accommodation details",
+    description="Update an existing accommodation record. Only provided fields are modified.",
+    responses={
+        200: {"description": "Accommodation updated successfully"},
+        400: {"description": "Check-out must be after check-in"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Accommodation or pilgrim not found"},
+    },
+)
 def update_accommodation(
     accommodation_id: int,
     body: AccommodationUpdate,
@@ -174,7 +220,18 @@ def update_accommodation(
     return _with_pilgrim(acc, db)
 
 
-@router.delete("/{accommodation_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{accommodation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an accommodation",
+    description="Permanently remove an accommodation record.",
+    responses={
+        204: {"description": "Accommodation deleted"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Accommodation not found"},
+    },
+)
 def delete_accommodation(
     accommodation_id: int,
     db: Annotated[Session, Depends(get_db)],

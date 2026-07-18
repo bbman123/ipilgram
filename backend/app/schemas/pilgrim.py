@@ -1,47 +1,47 @@
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.user import Role
 
 
 class PilgrimCreate(BaseModel):
-    email: str
-    password: str
-    full_name: str
-    phone: str | None = None
-    nationality: str | None = None
-    passport_number: str | None = None
-    emergency_contact: str | None = None
+    email: str = Field(..., min_length=5, max_length=255, description="Pilgrim email address", examples=["pilgrim@example.com"])
+    password: str = Field(..., min_length=6, max_length=128, description="Login password", examples=["securepass123"])
+    full_name: str = Field(..., min_length=1, max_length=255, description="Full name", examples=["Ahmed Mohammed"])
+    phone: str | None = Field(default=None, max_length=50, description="Phone number", examples=["+2348012345678"])
+    nationality: str | None = Field(default=None, max_length=100, description="Country of origin", examples=["Nigerian"])
+    passport_number: str | None = Field(default=None, max_length=50, description="Passport number", examples=["A12345678"])
+    emergency_contact: str | None = Field(default=None, max_length=500, description="Emergency contact details", examples=["+2348098765432"])
 
 
 class PilgrimUpdate(BaseModel):
-    email: str | None = None
-    full_name: str | None = None
-    phone: str | None = None
-    nationality: str | None = None
-    passport_number: str | None = None
-    emergency_contact: str | None = None
-    is_active: bool | None = None
+    email: str | None = Field(default=None, min_length=5, max_length=255, description="Email address")
+    full_name: str | None = Field(default=None, min_length=1, max_length=255, description="Full name")
+    phone: str | None = Field(default=None, max_length=50, description="Phone number")
+    nationality: str | None = Field(default=None, max_length=100, description="Country of origin")
+    passport_number: str | None = Field(default=None, max_length=50, description="Passport number")
+    emergency_contact: str | None = Field(default=None, max_length=500, description="Emergency contact details")
+    is_active: bool | None = Field(default=None, description="Account active status")
 
 
 class PilgrimResponse(BaseModel):
-    id: int
-    email: str
-    full_name: str
-    role: Role
-    is_active: bool
-    phone: str | None
-    nationality: str | None
-    passport_number: str | None
-    emergency_contact: str | None
-    created_at: str
-    updated_at: str
+    id: int = Field(..., description="Unique pilgrim identifier")
+    email: str = Field(..., description="Email address")
+    full_name: str = Field(..., description="Full name")
+    role: Role = Field(..., description="User role")
+    is_active: bool = Field(..., description="Whether the account is active")
+    phone: str | None = Field(default=None, description="Phone number")
+    nationality: str | None = Field(default=None, description="Country of origin")
+    passport_number: str | None = Field(default=None, description="Passport number")
+    emergency_contact: str | None = Field(default=None, description="Emergency contact")
+    created_at: str = Field(..., description="Creation timestamp")
+    updated_at: str = Field(..., description="Last update timestamp")
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PaginatedPilgrims(BaseModel):
-    items: list[PilgrimResponse]
-    total: int
-    page: int
-    size: int
-    pages: int
+    items: list[PilgrimResponse] = Field(..., description="List of pilgrim records")
+    total: int = Field(..., description="Total number of matching records")
+    page: int = Field(..., description="Current page number")
+    size: int = Field(..., description="Page size")
+    pages: int = Field(..., description="Total number of pages")

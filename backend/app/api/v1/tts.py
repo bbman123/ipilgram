@@ -13,12 +13,22 @@ from app.services.tts import generate_audio, AUDIO_CACHE_DIR
 router = APIRouter(prefix="/tts", tags=["Text-to-Speech"])
 
 
-@router.post("", response_model=TTSResponse)
+@router.post(
+    "",
+    response_model=TTSResponse,
+    summary="Convert text to speech",
+    description="Generate an MP3 audio file from text. Supports English, Hausa, Yoruba, Igbo, and Arabic. Cached by text+language hash.",
+    responses={
+        200: {"description": "Audio URL and metadata returned"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        500: {"description": "TTS generation failed"},
+    },
+)
 def text_to_speech(
     body: TTSRequest,
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
-    """Convert text to speech audio file. Returns cached audio if available."""
     try:
         audio_url = generate_audio(body.text, body.language.value)
     except Exception as e:
@@ -40,9 +50,17 @@ def text_to_speech(
     )
 
 
-@router.get("/audio/{filename}")
+@router.get(
+    "/audio/{filename}",
+    summary="Download audio file",
+    description="Serve a cached MP3 audio file by filename. No authentication required.",
+    responses={
+        200: {"description": "Audio file (audio/mpeg)"},
+        404: {"description": "Audio file not found"},
+    },
+)
 def serve_audio(filename: str):
-    """Serve a cached audio file."""
+    """Serve a cached audio file. No authentication required."""
     filepath = AUDIO_CACHE_DIR / filename
     if not filepath.exists() or not filepath.suffix == ".mp3":
         raise HTTPException(
