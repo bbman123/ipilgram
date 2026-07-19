@@ -14,16 +14,32 @@ branch_labels = None
 depends_on = None
 
 
+def _create_index_if_not_exists(index_name, table_name, columns, unique=False):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    existing = [idx['name'] for idx in insp.get_indexes(table_name)]
+    if index_name not in existing:
+        op.create_index(index_name, table_name, columns, unique=unique)
+
+
+def _drop_index_if_exists(index_name, table_name):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    existing = [idx['name'] for idx in insp.get_indexes(table_name)]
+    if index_name in existing:
+        op.drop_index(index_name, table_name=table_name)
+
+
 def upgrade() -> None:
     # Notification performance indexes
-    op.create_index("ix_notifications_pilgrim_id", "notifications", ["pilgrim_id"])
-    op.create_index("ix_notifications_status", "notifications", ["status"])
-    op.create_index("ix_notifications_notification_type", "notifications", ["notification_type"])
-    op.create_index("ix_notifications_created_at", "notifications", ["created_at"])
+    _create_index_if_not_exists("ix_notifications_pilgrim_id", "notifications", ["pilgrim_id"])
+    _create_index_if_not_exists("ix_notifications_status", "notifications", ["status"])
+    _create_index_if_not_exists("ix_notifications_notification_type", "notifications", ["notification_type"])
+    _create_index_if_not_exists("ix_notifications_created_at", "notifications", ["created_at"])
 
     # DeviceToken indexes
-    op.create_index("ix_device_tokens_pilgrim_id", "device_tokens", ["pilgrim_id"])
-    op.create_index("ix_device_tokens_platform", "device_tokens", ["platform"])
+    _create_index_if_not_exists("ix_device_tokens_pilgrim_id", "device_tokens", ["pilgrim_id"])
+    _create_index_if_not_exists("ix_device_tokens_platform", "device_tokens", ["platform"])
 
     # Refresh token: fix expires_at from VARCHAR to TIMESTAMP
     op.alter_column(
@@ -36,12 +52,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_notifications_pilgrim_id", table_name="notifications")
-    op.drop_index("ix_notifications_status", table_name="notifications")
-    op.drop_index("ix_notifications_notification_type", table_name="notifications")
-    op.drop_index("ix_notifications_created_at", table_name="notifications")
-    op.drop_index("ix_device_tokens_pilgrim_id", table_name="device_tokens")
-    op.drop_index("ix_device_tokens_platform", table_name="device_tokens")
+    _drop_index_if_exists("ix_notifications_pilgrim_id", "notifications")
+    _drop_index_if_exists("ix_notifications_status", "notifications")
+    _drop_index_if_exists("ix_notifications_notification_type", "notifications")
+    _drop_index_if_exists("ix_notifications_created_at", "notifications")
+    _drop_index_if_exists("ix_device_tokens_pilgrim_id", "device_tokens")
+    _drop_index_if_exists("ix_device_tokens_platform", "device_tokens")
     op.alter_column(
         "refresh_tokens",
         "expires_at",

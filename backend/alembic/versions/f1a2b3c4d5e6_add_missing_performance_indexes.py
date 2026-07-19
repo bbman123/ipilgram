@@ -23,6 +23,14 @@ def _create_index_if_not_exists(index_name, table_name, columns):
         op.create_index(index_name, table_name, columns, unique=False)
 
 
+def _drop_index_if_exists(index_name, table_name):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    existing = [idx['name'] for idx in insp.get_indexes(table_name)]
+    if index_name in existing:
+        op.drop_index(index_name, table_name=table_name)
+
+
 def upgrade() -> None:
     _create_index_if_not_exists('ix_users_package_id', 'users', ['package_id'])
     _create_index_if_not_exists('ix_packages_flight_id', 'packages', ['flight_id'])
@@ -36,12 +44,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index('ix_notifications_pilgrim_id', table_name='notifications')
-    op.drop_index('ix_device_tokens_pilgrim_id', table_name='device_tokens')
-    op.drop_index('ix_announcements_expiry_date', table_name='announcements')
-    op.drop_index('ix_announcements_publish_date', table_name='announcements')
-    op.drop_index('ix_announcements_target_type', table_name='announcements')
-    op.drop_index('ix_packages_transport_id', table_name='packages')
-    op.drop_index('ix_packages_accommodation_id', table_name='packages')
-    op.drop_index('ix_packages_flight_id', table_name='packages')
-    op.drop_index('ix_users_package_id', table_name='users')
+    _drop_index_if_exists('ix_notifications_pilgrim_id', 'notifications')
+    _drop_index_if_exists('ix_device_tokens_pilgrim_id', 'device_tokens')
+    _drop_index_if_exists('ix_announcements_expiry_date', 'announcements')
+    _drop_index_if_exists('ix_announcements_publish_date', 'announcements')
+    _drop_index_if_exists('ix_announcements_target_type', 'announcements')
+    _drop_index_if_exists('ix_packages_transport_id', 'packages')
+    _drop_index_if_exists('ix_packages_accommodation_id', 'packages')
+    _drop_index_if_exists('ix_packages_flight_id', 'packages')
+    _drop_index_if_exists('ix_users_package_id', 'users')

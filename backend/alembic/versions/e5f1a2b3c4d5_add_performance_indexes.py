@@ -17,50 +17,66 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _create_index_if_not_exists(index_name, table_name, columns, unique=False):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    existing = [idx['name'] for idx in insp.get_indexes(table_name)]
+    if index_name not in existing:
+        op.create_index(index_name, table_name, columns, unique=unique)
+
+
+def _drop_index_if_exists(index_name, table_name):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    existing = [idx['name'] for idx in insp.get_indexes(table_name)]
+    if index_name in existing:
+        op.drop_index(index_name, table_name=table_name)
+
+
 def upgrade() -> None:
     # Flights: index on pilgrim_id for JOIN performance and status for filtering
-    op.create_index('ix_flights_pilgrim_id', 'flights', ['pilgrim_id'])
-    op.create_index('ix_flights_status', 'flights', ['status'])
-    op.create_index('ix_flights_departure_datetime', 'flights', ['departure_datetime'])
+    _create_index_if_not_exists('ix_flights_pilgrim_id', 'flights', ['pilgrim_id'])
+    _create_index_if_not_exists('ix_flights_status', 'flights', ['status'])
+    _create_index_if_not_exists('ix_flights_departure_datetime', 'flights', ['departure_datetime'])
 
     # Accommodations: index on pilgrim_id and city for filtering
-    op.create_index('ix_accommodations_pilgrim_id', 'accommodations', ['pilgrim_id'])
-    op.create_index('ix_accommodations_city', 'accommodations', ['city'])
+    _create_index_if_not_exists('ix_accommodations_pilgrim_id', 'accommodations', ['pilgrim_id'])
+    _create_index_if_not_exists('ix_accommodations_city', 'accommodations', ['city'])
 
     # Transports: index on pilgrim_id and transport_type for filtering
-    op.create_index('ix_transports_pilgrim_id', 'transports', ['pilgrim_id'])
-    op.create_index('ix_transports_transport_type', 'transports', ['transport_type'])
-    op.create_index('ix_transports_pickup_time', 'transports', ['pickup_time'])
+    _create_index_if_not_exists('ix_transports_pilgrim_id', 'transports', ['pilgrim_id'])
+    _create_index_if_not_exists('ix_transports_transport_type', 'transports', ['transport_type'])
+    _create_index_if_not_exists('ix_transports_pickup_time', 'transports', ['pickup_time'])
 
     # Announcements: index on category, priority for filtering
-    op.create_index('ix_announcements_category', 'announcements', ['category'])
-    op.create_index('ix_announcements_priority', 'announcements', ['priority'])
+    _create_index_if_not_exists('ix_announcements_category', 'announcements', ['category'])
+    _create_index_if_not_exists('ix_announcements_priority', 'announcements', ['priority'])
 
     # Preferences: index on pilgrim_id (unique already, but explicit for query performance)
-    op.create_index('ix_preferences_pilgrim_id', 'preferences', ['pilgrim_id'])
+    _create_index_if_not_exists('ix_preferences_pilgrim_id', 'preferences', ['pilgrim_id'])
 
     # Notifications: index on pilgrim_id, notification_type, status for filtering
-    op.create_index('ix_notifications_pilgrim_id', 'notifications', ['pilgrim_id'])
-    op.create_index('ix_notifications_notification_type', 'notifications', ['notification_type'])
-    op.create_index('ix_notifications_status', 'notifications', ['status'])
+    _create_index_if_not_exists('ix_notifications_pilgrim_id', 'notifications', ['pilgrim_id'])
+    _create_index_if_not_exists('ix_notifications_notification_type', 'notifications', ['notification_type'])
+    _create_index_if_not_exists('ix_notifications_status', 'notifications', ['status'])
 
     # Device tokens: index on pilgrim_id for JOIN performance
-    op.create_index('ix_device_tokens_pilgrim_id', 'device_tokens', ['pilgrim_id'])
+    _create_index_if_not_exists('ix_device_tokens_pilgrim_id', 'device_tokens', ['pilgrim_id'])
 
 
 def downgrade() -> None:
-    op.drop_index('ix_device_tokens_pilgrim_id', table_name='device_tokens')
-    op.drop_index('ix_notifications_status', table_name='notifications')
-    op.drop_index('ix_notifications_notification_type', table_name='notifications')
-    op.drop_index('ix_notifications_pilgrim_id', table_name='notifications')
-    op.drop_index('ix_preferences_pilgrim_id', table_name='preferences')
-    op.drop_index('ix_announcements_priority', table_name='announcements')
-    op.drop_index('ix_announcements_category', table_name='announcements')
-    op.drop_index('ix_transports_pickup_time', table_name='transports')
-    op.drop_index('ix_transports_transport_type', table_name='transports')
-    op.drop_index('ix_transports_pilgrim_id', table_name='transports')
-    op.drop_index('ix_accommodations_city', table_name='accommodations')
-    op.drop_index('ix_accommodations_pilgrim_id', table_name='accommodations')
-    op.drop_index('ix_flights_departure_datetime', table_name='flights')
-    op.drop_index('ix_flights_status', table_name='flights')
-    op.drop_index('ix_flights_pilgrim_id', table_name='flights')
+    _drop_index_if_exists('ix_device_tokens_pilgrim_id', 'device_tokens')
+    _drop_index_if_exists('ix_notifications_status', 'notifications')
+    _drop_index_if_exists('ix_notifications_notification_type', 'notifications')
+    _drop_index_if_exists('ix_notifications_pilgrim_id', 'notifications')
+    _drop_index_if_exists('ix_preferences_pilgrim_id', 'preferences')
+    _drop_index_if_exists('ix_announcements_priority', 'announcements')
+    _drop_index_if_exists('ix_announcements_category', 'announcements')
+    _drop_index_if_exists('ix_transports_pickup_time', 'transports')
+    _drop_index_if_exists('ix_transports_transport_type', 'transports')
+    _drop_index_if_exists('ix_transports_pilgrim_id', 'transports')
+    _drop_index_if_exists('ix_accommodations_city', 'accommodations')
+    _drop_index_if_exists('ix_accommodations_pilgrim_id', 'accommodations')
+    _drop_index_if_exists('ix_flights_departure_datetime', 'flights')
+    _drop_index_if_exists('ix_flights_status', 'flights')
+    _drop_index_if_exists('ix_flights_pilgrim_id', 'flights')

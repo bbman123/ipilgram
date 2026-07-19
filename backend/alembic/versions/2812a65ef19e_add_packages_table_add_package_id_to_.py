@@ -17,8 +17,51 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _create_table_if_not_exists(table_name, *args, **kwargs):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    if table_name not in insp.get_table_names():
+        op.create_table(table_name, *args, **kwargs)
+
+
+def _drop_table_if_exists(table_name):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    if table_name in insp.get_table_names():
+        op.drop_table(table_name)
+
+
+def _add_column_if_not_exists(table_name, column):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    existing = [c['name'] for c in insp.get_columns(table_name)]
+    if column.name not in existing:
+        op.add_column(table_name, column)
+
+
+def _drop_column_if_exists(table_name, column_name):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    existing = [c['name'] for c in insp.get_columns(table_name)]
+    if column_name in existing:
+        op.drop_column(table_name, column_name)
+
+
+def _drop_constraint_if_exists(constraint_name, table_name, type_):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    for fk in insp.get_foreign_keys(table_name):
+        if fk['name'] == constraint_name:
+            op.drop_constraint(constraint_name, table_name, type_=type_)
+            return
+    for uq in insp.get_unique_constraints(table_name):
+        if uq['name'] == constraint_name:
+            op.drop_constraint(constraint_name, table_name, type_=type_)
+            return
+
+
 def upgrade() -> None:
-    op.create_table('packages',
+    _create_table_if_not_exists('packages',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
@@ -33,28 +76,28 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
 
-    op.drop_constraint('accommodations_pilgrim_id_fkey', 'accommodations', type_='foreignkey')
-    op.drop_column('accommodations', 'pilgrim_id')
-    op.drop_constraint('flights_pilgrim_id_fkey', 'flights', type_='foreignkey')
-    op.drop_column('flights', 'pilgrim_id')
-    op.drop_constraint('transports_pilgrim_id_fkey', 'transports', type_='foreignkey')
-    op.drop_column('transports', 'pilgrim_id')
+    _drop_constraint_if_exists('accommodations_pilgrim_id_fkey', 'accommodations', 'foreignkey')
+    _drop_column_if_exists('accommodations', 'pilgrim_id')
+    _drop_constraint_if_exists('flights_pilgrim_id_fkey', 'flights', 'foreignkey')
+    _drop_column_if_exists('flights', 'pilgrim_id')
+    _drop_constraint_if_exists('transports_pilgrim_id_fkey', 'transports', 'foreignkey')
+    _drop_column_if_exists('transports', 'pilgrim_id')
 
-    op.add_column('users', sa.Column('package_id', sa.Integer(), nullable=True))
+    _add_column_if_not_exists('users', sa.Column('package_id', sa.Integer(), nullable=True))
     op.create_foreign_key(None, 'users', 'packages', ['package_id'], ['id'], ondelete='SET NULL')
 
 
 def downgrade() -> None:
     op.drop_constraint(None, 'users', type_='foreignkey')
-    op.drop_column('users', 'package_id')
+    _drop_column_if_exists('users', 'package_id')
 
-    op.add_column('transports', sa.Column('pilgrim_id', sa.INTEGER(), autoincrement=False, nullable=False))
+    _add_column_if_not_exists('transports', sa.Column('pilgrim_id', sa.INTEGER(), autoincrement=False, nullable=False))
     op.create_foreign_key('transports_pilgrim_id_fkey', 'transports', 'users', ['pilgrim_id'], ['id'], ondelete='CASCADE')
 
-    op.add_column('flights', sa.Column('pilgrim_id', sa.INTEGER(), autoincrement=False, nullable=False))
+    _add_column_if_not_exists('flights', sa.Column('pilgrim_id', sa.INTEGER(), autoincrement=False, nullable=False))
     op.create_foreign_key('flights_pilgrim_id_fkey', 'flights', 'users', ['pilgrim_id'], ['id'], ondelete='CASCADE')
 
-    op.add_column('accommodations', sa.Column('pilgrim_id', sa.INTEGER(), autoincrement=False, nullable=False))
+    _add_column_if_not_exists('accommodations', sa.Column('pilgrim_id', sa.INTEGER(), autoincrement=False, nullable=False))
     op.create_foreign_key('accommodations_pilgrim_id_fkey', 'accommodations', 'users', ['pilgrim_id'], ['id'], ondelete='CASCADE')
 
-    op.drop_table('packages')
+    _drop_table_if_exists('packages')
