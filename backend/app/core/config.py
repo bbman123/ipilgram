@@ -1,7 +1,11 @@
-from typing import List
+import json
+import logging
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from functools import lru_cache
+
+
+logger = logging.getLogger("hajj_api")
 
 
 class Settings(BaseSettings):
@@ -18,9 +22,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     FIREBASE_CREDENTIALS_PATH: str = ""
 
-    CORS_ORIGINS: List[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: str = '["http://localhost:5173"]'
 
-    @field_validator("CORS_ORIGINS", mode="before")
+    @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
     def assemble_cors_origins(cls, value):
         if isinstance(value, list):
@@ -41,6 +45,10 @@ class Settings(BaseSettings):
 
         return value
 
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return self.assemble_cors_origins(self.CORS_ORIGINS)
+
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     WORKERS: int = 2
@@ -55,8 +63,7 @@ class Settings(BaseSettings):
             "changeme",
         }
         if v.lower() in weak_defaults or len(v) < 32:
-            import logging
-            logging.getLogger("hajj_api").warning(
+            logger.warning(
                 "SECRET_KEY is weak or default. Generate a strong key for production: "
                 "python -c \"import secrets; print(secrets.token_hex(32))\""
             )

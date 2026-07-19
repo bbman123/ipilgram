@@ -95,7 +95,7 @@ def create_app() -> FastAPI:
             allowed_hosts=["localhost", "127.0.0.1", ".onrender.com", ".railway.app", ".fly.dev"],
         )
 
-    allowed_origins = settings.CORS_ORIGINS
+    allowed_origins = settings.cors_origins_list
     if settings.DEBUG and "localhost" not in str(allowed_origins):
         allowed_origins = ["http://localhost:5173"]
 
