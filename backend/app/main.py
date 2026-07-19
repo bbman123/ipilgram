@@ -1,6 +1,7 @@
 import logging
 import uuid
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -12,27 +13,57 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.config import get_settings
 from app.api.v1.router import api_router
-from app.middleware import RequestIDMiddleware
+from app.middleware import RequestIDMiddleware, SecurityHeadersMiddleware
+
+from app.services.notification_engine import run_notification_engine
 
 settings = get_settings()
 
 logger = logging.getLogger("hajj_api")
 
+_scheduler = None
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    global _scheduler
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.interval import IntervalTrigger
+
+    _scheduler = BackgroundScheduler()
+    _scheduler.add_job(
+        run_notification_engine,
+        trigger=IntervalTrigger(minutes=5),
+        id="notification_engine",
+        replace_existing=True,
+    )
+    _scheduler.start()
+    logger.info("Notification engine scheduler started (every 5 minutes)")
+
+    run_notification_engine()
+
+    yield
+
+    if _scheduler:
+        _scheduler.shutdown(wait=False)
+        logger.info("Notification engine scheduler stopped")
+
 limiter = Limiter(key_func=get_remote_address)
 
 TAGS_METADATA = [
     {"name": "Health", "description": "Service health checks"},
+    {"name": "Dashboard", "description": "Dashboard statistics and analytics"},
     {"name": "Auth", "description": "User registration, login, token refresh, logout"},
     {"name": "Pilgrims", "description": "CRUD operations for pilgrim management (admin only)"},
     {"name": "Flights", "description": "Flight booking management with status tracking"},
     {"name": "Accommodations", "description": "Hotel and accommodation management"},
     {"name": "Transports", "description": "Ground transportation management"},
     {"name": "Packages", "description": "Hajj package management with component linking"},
-    {"name": "Announcements", "description": "Multi-target Hajj announcements with priority levels"},
+    {"name": "Announcements", "description": "Announcement templates with placeholders and dynamic recipient resolution"},
     {"name": "Preferences", "description": "Pilgrim display and notification preferences"},
     {"name": "AI Personalization", "description": "AI-powered content simplification and translation (Gemini)"},
     {"name": "Text-to-Speech", "description": "Convert text to audio in multiple languages"},
-    {"name": "Notifications", "description": "Push notification delivery and device token management"},
+    {"name": "Notifications", "description": "System-generated notifications for pilgrims based on package data"},
 ]
 
 
@@ -48,19 +79,25 @@ def create_app() -> FastAPI:
         openapi_tags=TAGS_METADATA,
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     application.state.limiter = limiter
     application.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
     application.add_middleware(RequestIDMiddleware)
+    application.add_middleware(SecurityHeadersMiddleware)
+
+    allowed_origins = settings.CORS_ORIGINS
+    if settings.DEBUG and "localhost" not in str(allowed_origins):
+        allowed_origins = ["http://localhost:5173"]
 
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=allowed_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     )
 
     @application.exception_handler(RequestValidationError)

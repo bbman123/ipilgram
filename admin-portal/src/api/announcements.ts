@@ -6,12 +6,17 @@ export type AnnouncementPriority = "low" | "medium" | "high" | "urgent";
 export interface Announcement {
   id: number;
   title: string;
-  message: string;
+  message_template: string;
   priority: AnnouncementPriority;
   target_type: TargetType;
   target_id: number | null;
   publish_date: string;
   expiry_date: string;
+  include_package_details: boolean;
+  include_flight_details: boolean;
+  include_transport_details: boolean;
+  include_accommodation_details: boolean;
+  send_as_notification: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -26,22 +31,32 @@ export interface PaginatedAnnouncements {
 
 export interface AnnouncementCreateData {
   title: string;
-  message: string;
+  message_template: string;
   priority?: AnnouncementPriority;
   target_type: TargetType;
   target_id?: number | null;
   publish_date: string;
   expiry_date: string;
+  include_package_details?: boolean;
+  include_flight_details?: boolean;
+  include_transport_details?: boolean;
+  include_accommodation_details?: boolean;
+  send_as_notification?: boolean;
 }
 
 export interface AnnouncementUpdateData {
   title?: string;
-  message?: string;
+  message_template?: string;
   priority?: AnnouncementPriority;
   target_type?: TargetType;
   target_id?: number | null;
   publish_date?: string;
   expiry_date?: string;
+  include_package_details?: boolean;
+  include_flight_details?: boolean;
+  include_transport_details?: boolean;
+  include_accommodation_details?: boolean;
+  send_as_notification?: boolean;
 }
 
 export async function listAnnouncements(
@@ -64,8 +79,8 @@ export async function getActiveAnnouncements(): Promise<Announcement[]> {
   return data;
 }
 
-export async function getMyAnnouncements(): Promise<Announcement[]> {
-  const { data } = await apiClient.get<Announcement[]>("/announcements/my");
+export async function getMyAnnouncements(): Promise<any[]> {
+  const { data } = await apiClient.get<any[]>("/announcements/my");
   return data;
 }
 

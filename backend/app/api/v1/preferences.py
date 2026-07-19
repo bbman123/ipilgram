@@ -97,32 +97,6 @@ def list_preferences(
 
 
 @router.get(
-    "/{preference_id}",
-    response_model=PreferenceWithPilgrim,
-    summary="Get preference by ID",
-    description="Retrieve a single preference record with pilgrim details.",
-    responses={
-        200: {"description": "Preference record with pilgrim info"},
-        401: {"description": "Authentication required"},
-        403: {"description": "Admin role required"},
-        404: {"description": "Preference not found"},
-    },
-)
-def get_preference(
-    preference_id: int,
-    db: Annotated[Session, Depends(get_db)],
-    _admin: Annotated[User, Depends(require_role(Role.admin))],
-):
-    pref = db.query(Preference).filter(Preference.id == preference_id).first()
-    if not pref:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Preference not found"
-        )
-    pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
-    return _enrich_pref(pref, pilgrim)
-
-
-@router.get(
     "/by-pilgrim/{pilgrim_id}",
     response_model=PreferenceWithPilgrim,
     summary="Get preference by pilgrim ID",
@@ -144,6 +118,32 @@ def get_preference_by_pilgrim(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Preference not found for this pilgrim",
+        )
+    pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
+    return _enrich_pref(pref, pilgrim)
+
+
+@router.get(
+    "/{preference_id}",
+    response_model=PreferenceWithPilgrim,
+    summary="Get preference by ID",
+    description="Retrieve a single preference record with pilgrim details.",
+    responses={
+        200: {"description": "Preference record with pilgrim info"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Preference not found"},
+    },
+)
+def get_preference(
+    preference_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_role(Role.admin))],
+):
+    pref = db.query(Preference).filter(Preference.id == preference_id).first()
+    if not pref:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Preference not found"
         )
     pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
     return _enrich_pref(pref, pilgrim)

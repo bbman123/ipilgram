@@ -11,6 +11,7 @@ export interface Pilgrim {
   passport_number: string | null;
   emergency_contact: string | null;
   package_id: number | null;
+  package_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -47,11 +48,13 @@ export interface PilgrimUpdateData {
 export async function listPilgrims(
   page = 1,
   size = 20,
-  search = ""
+  search = "",
+  packageId?: number
 ): Promise<PaginatedPilgrims> {
-  const { data } = await apiClient.get<PaginatedPilgrims>("/pilgrims", {
-    params: { page, size, search },
-  });
+  const params: Record<string, string | number> = { page, size };
+  if (search) params.search = search;
+  if (packageId != null) params.package_id = packageId;
+  const { data } = await apiClient.get<PaginatedPilgrims>("/pilgrims", { params });
   return data;
 }
 

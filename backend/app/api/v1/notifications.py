@@ -1,12 +1,12 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.api.deps import require_role
+from app.api.deps import require_role, get_current_user
 from app.models.user import User, Role
 from app.models.notification import (
     Notification,
@@ -16,7 +16,6 @@ from app.models.notification import (
 )
 from app.schemas.common import PaginationParams, SortingParams, paginate
 from app.schemas.notification import (
-    SendNotificationRequest,
     NotificationResponse,
     PaginatedNotifications,
     DeviceTokenRequest,
@@ -28,116 +27,16 @@ logger = logging.getLogger("hajj_api")
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
-ALLOWED_SORT_FIELDS = ["id", "notification_type", "status", "created_at", "sent_at"]
-
-
-@router.post(
-    "/send",
-    response_model=list[NotificationResponse],
-    summary="Send push notification",
-    description=(
-        "Send a push notification to one or more pilgrims via FCM. "
-        "If pilgrim_ids is empty or null, broadcasts to all active pilgrims."
-    ),
-    responses={
-        200: {"description": "Notification(s) created and delivery attempted"},
-        401: {"description": "Authentication required"},
-        403: {"description": "Admin role required"},
-    },
-)
-def send_notification(
-    body: SendNotificationRequest,
-    db: Annotated[Session, Depends(get_db)],
-    _admin: Annotated[User, Depends(require_role(Role.admin))],
-):
-    fcm = FCMService()
-    is_broadcast = not body.pilgrim_ids
-
-    if is_broadcast:
-        pilgrims = db.query(User).filter(User.role == Role.pilgrim, User.is_active == True).all()
-        target_ids = [p.id for p in pilgrims]
-    else:
-        target_ids = body.pilgrim_ids
-
-    if target_ids:
-        tokens = (
-            db.query(DeviceToken)
-            .filter(
-                DeviceToken.pilgrim_id.in_(target_ids),
-                DeviceToken.is_active == True,
-            )
-            .all()
-        )
-    else:
-        tokens = []
-
-    if not tokens:
-        notification = Notification(
-            title=body.title,
-            body=body.body,
-            notification_type=body.notification_type,
-            pilgrim_id=target_ids[0] if len(target_ids) == 1 else None,
-            is_broadcast=is_broadcast,
-            status=NotificationStatus.pending,
-            fcm_response="No device tokens found",
-        )
-        db.add(notification)
-        db.commit()
-        db.refresh(notification)
-        return [NotificationResponse.model_validate(notification)]
-
-    token_list = [t.token for t in tokens]
-    token_pilgrim_map = {t.token: t.pilgrim_id for t in tokens}
-
-    notifications = []
-    if fcm.is_configured():
-        results = fcm.send_to_tokens(
-            token_list,
-            body.title,
-            body.body,
-            data={"type": body.notification_type.value},
-        )
-        for r in results:
-            n = Notification(
-                title=body.title,
-                body=body.body,
-                notification_type=body.notification_type,
-                pilgrim_id=token_pilgrim_map.get(r["token"]),
-                is_broadcast=is_broadcast,
-                status=NotificationStatus.sent if r["success"] else NotificationStatus.failed,
-                fcm_response=str(r.get("response", r.get("error", ""))),
-                sent_at=datetime.utcnow() if r["success"] else None,
-            )
-            db.add(n)
-            notifications.append(n)
-    else:
-        for token in token_list:
-            n = Notification(
-                title=body.title,
-                body=body.body,
-                notification_type=body.notification_type,
-                pilgrim_id=token_pilgrim_map.get(token),
-                is_broadcast=is_broadcast,
-                status=NotificationStatus.pending,
-                fcm_response="FCM not configured",
-            )
-            db.add(n)
-            notifications.append(n)
-
-    db.commit()
-    for n in notifications:
-        db.refresh(n)
-
-    return [NotificationResponse.model_validate(n) for n in notifications]
+ALLOWED_SORT_FIELDS = ["id", "notification_type", "status", "created_at", "sent_at", "scheduled_time"]
 
 
 @router.get(
     "",
     response_model=PaginatedNotifications,
-    summary="List notification history",
-    description="Retrieve a paginated list of sent notifications. Supports search, sorting, and filtering by type and status.",
+    summary="List all notifications (admin)",
+    description="Admin endpoint. Retrieve a paginated list of all notifications across all pilgrims. Supports filtering by type and status.",
     responses={
-        200: {"description": "Paginated notification history"},
+        200: {"description": "Paginated notification list"},
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
     },
@@ -149,14 +48,16 @@ def list_notifications(
     sorting: Annotated[SortingParams, Depends()],
     notification_type: NotificationType | None = Query(None, alias="type", description="Filter by notification type"),
     status_filter: NotificationStatus | None = Query(None, alias="status", description="Filter by delivery status"),
+    pilgrim_id: int | None = Query(None, description="Filter by pilgrim ID"),
 ):
     query = db.query(Notification)
 
     if notification_type:
         query = query.filter(Notification.notification_type == notification_type)
-
     if status_filter:
         query = query.filter(Notification.status == status_filter)
+    if pilgrim_id:
+        query = query.filter(Notification.pilgrim_id == pilgrim_id)
 
     query = sorting.apply(query, Notification, ALLOWED_SORT_FIELDS)
     result = paginate(query, pagination)
@@ -168,6 +69,62 @@ def list_notifications(
         size=result["size"],
         pages=result["pages"],
     )
+
+
+@router.get(
+    "/my",
+    response_model=list[NotificationResponse],
+    summary="Get my notifications (pilgrim)",
+    description="Pilgrim endpoint. Retrieve all notifications for the authenticated pilgrim, ordered by scheduled_time.",
+    responses={
+        200: {"description": "List of notifications for the pilgrim"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Pilgrim role required"},
+    },
+)
+def get_my_notifications(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role(Role.pilgrim))],
+):
+    notifications = (
+        db.query(Notification)
+        .filter(Notification.pilgrim_id == current_user.id)
+        .order_by(Notification.scheduled_time.desc().nullslast(), Notification.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [NotificationResponse.model_validate(n) for n in notifications]
+
+
+@router.patch(
+    "/{notification_id}/read",
+    response_model=NotificationResponse,
+    summary="Mark notification as read",
+    description="Mark a single notification as read by setting read_at and status to 'read'.",
+    responses={
+        200: {"description": "Notification marked as read"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Can only mark your own notifications"},
+        404: {"description": "Notification not found"},
+    },
+)
+def mark_notification_read(
+    notification_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    n = db.query(Notification).filter(Notification.id == notification_id).first()
+    if not n:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
+
+    if n.pilgrim_id != current_user.id and current_user.role != Role.admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your notification")
+
+    n.read_at = datetime.now(timezone.utc)
+    n.status = NotificationStatus.read
+    db.commit()
+    db.refresh(n)
+    return NotificationResponse.model_validate(n)
 
 
 @router.post(

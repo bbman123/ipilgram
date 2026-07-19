@@ -19,6 +19,7 @@ from app.schemas.package import (
     PackageDetailResponse,
     PaginatedPackages,
 )
+from app.schemas.pilgrim import PilgrimResponse, PaginatedPilgrims
 
 router = APIRouter(prefix="/packages", tags=["Packages"])
 
@@ -263,6 +264,61 @@ def assign_package(
         pilgrim_count=pilgrim_count,
         created_at=pkg.created_at,
         updated_at=pkg.updated_at,
+    )
+
+
+@router.get(
+    "/{package_id}/pilgrims",
+    response_model=PaginatedPilgrims,
+    summary="List pilgrims assigned to a package",
+    description="Retrieve a paginated list of pilgrims assigned to a specific package. Supports search and pagination.",
+    responses={
+        200: {"description": "Paginated list of pilgrims in this package"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Package not found"},
+    },
+)
+def list_package_pilgrims(
+    package_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_role(Role.admin))],
+    pagination: Annotated[PaginationParams, Depends()],
+    search: str = Query("", max_length=255, description="Search by name, email, or phone"),
+):
+    pkg = db.query(Package).filter(Package.id == package_id).first()
+    if not pkg:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Package not found"
+        )
+
+    query = db.query(User).filter(User.role == Role.pilgrim, User.package_id == package_id)
+
+    if search:
+        pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                User.full_name.ilike(pattern),
+                User.email.ilike(pattern),
+                User.phone.ilike(pattern),
+            )
+        )
+
+    query = query.order_by(User.full_name.asc())
+    result = paginate(query, pagination)
+
+    items = []
+    for u in result["items"]:
+        resp = PilgrimResponse.model_validate(u)
+        resp.package_name = pkg.name
+        items.append(resp)
+
+    return PaginatedPilgrims(
+        items=items,
+        total=result["total"],
+        page=result["page"],
+        size=result["size"],
+        pages=result["pages"],
     )
 
 

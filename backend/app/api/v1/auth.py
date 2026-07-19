@@ -93,7 +93,7 @@ def login(request: Request, body: UserLogin, db: Annotated[Session, Depends(get_
     db_token = RefreshToken(
         token=hash_password(refresh_token),
         user_id=user.id,
-        expires_at=str(expires_at),
+        expires_at=expires_at,
     )
     db.add(db_token)
     db.commit()
@@ -146,7 +146,7 @@ def refresh(body: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
     new_db_token = RefreshToken(
         token=hash_password(refresh_token),
         user_id=user.id,
-        expires_at=str(expires_at),
+        expires_at=expires_at,
     )
     db.add(new_db_token)
     db.commit()

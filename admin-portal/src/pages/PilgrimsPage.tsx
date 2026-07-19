@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { listPilgrims, type Pilgrim } from "../api/pilgrims";
+import { listPackages, type Package } from "../api/packages";
 
 export default function PilgrimsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -8,22 +9,33 @@ export default function PilgrimsPage() {
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [packages, setPackages] = useState<Package[]>([]);
 
   const page = Number(searchParams.get("page")) || 1;
   const search = searchParams.get("search") || "";
+  const packageFilter = searchParams.get("package_id") || "";
   const [searchInput, setSearchInput] = useState(search);
+
+  useEffect(() => {
+    listPackages(1, 500).then((d) => setPackages(d.items)).catch(() => {});
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listPilgrims(page, 10, search);
+      const data = await listPilgrims(
+        page,
+        10,
+        search,
+        packageFilter ? Number(packageFilter) : undefined
+      );
       setPilgrims(data.items);
       setTotal(data.total);
       setPages(data.pages);
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, search, packageFilter]);
 
   useEffect(() => {
     fetchData();
@@ -31,11 +43,17 @@ export default function PilgrimsPage() {
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    setSearchParams({ search: searchInput, page: "1" });
+    const params: Record<string, string> = { page: "1" };
+    if (searchInput) params.search = searchInput;
+    if (packageFilter) params.package_id = packageFilter;
+    setSearchParams(params);
   }
 
   function goToPage(p: number) {
-    setSearchParams({ search, page: String(p) });
+    const params: Record<string, string> = { page: String(p) };
+    if (search) params.search = search;
+    if (packageFilter) params.package_id = packageFilter;
+    setSearchParams(params);
   }
 
   return (
@@ -56,7 +74,7 @@ export default function PilgrimsPage() {
         </Link>
       </div>
 
-      <form onSubmit={handleSearch} className="mb-4 flex gap-2">
+      <form onSubmit={handleSearch} className="mb-4 flex flex-col sm:flex-row gap-2">
         <input
           type="text"
           value={searchInput}
@@ -64,13 +82,29 @@ export default function PilgrimsPage() {
           placeholder="Search by name, email, phone..."
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
         />
+        <select
+          value={packageFilter}
+          onChange={(e) => {
+            const v = e.target.value;
+            const params: Record<string, string> = { page: "1" };
+            if (searchInput) params.search = searchInput;
+            if (v) params.package_id = v;
+            setSearchParams(params);
+          }}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        >
+          <option value="">All Packages</option>
+          {packages.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
         <button
           type="submit"
           className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
         >
           Search
         </button>
-        {search && (
+        {(search || packageFilter) && (
           <button
             type="button"
             onClick={() => { setSearchInput(""); setSearchParams({ page: "1" }); }}
@@ -89,7 +123,7 @@ export default function PilgrimsPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Phone</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Nationality</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Package</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
               </tr>
@@ -117,7 +151,15 @@ export default function PilgrimsPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">{p.email}</td>
                     <td className="px-4 py-3 text-gray-600">{p.phone || "-"}</td>
-                    <td className="px-4 py-3 text-gray-600">{p.nationality || "-"}</td>
+                    <td className="px-4 py-3">
+                      {p.package_id ? (
+                        <Link to={`/packages/${p.package_id}`} className="text-emerald-600 hover:text-emerald-800 text-xs">
+                          {p.package_name || `Package #${p.package_id}`}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-400 text-xs">Unassigned</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`inline-block text-xs px-2 py-0.5 rounded-full ${p.is_active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
                         {p.is_active ? "Active" : "Inactive"}

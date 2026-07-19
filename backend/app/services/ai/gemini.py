@@ -17,6 +17,13 @@ class GeminiProvider(AIProvider):
         self.api_key = api_key
         self.client = httpx.Client(timeout=30)
 
+    @property
+    def name(self) -> str:
+        return "gemini"
+
+    def is_configured(self) -> bool:
+        return bool(self.api_key)
+
     def generate(self, prompt: str, system_instruction: str = "") -> AIResponse:
         url = f"{self.BASE_URL}/{self.MODEL}:generateContent?key={self.api_key}"
 

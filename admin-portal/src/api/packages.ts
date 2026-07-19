@@ -1,59 +1,8 @@
 import apiClient from "./client";
-
-export type FlightStatus =
-  | "scheduled"
-  | "confirmed"
-  | "boarding"
-  | "departed"
-  | "in_air"
-  | "landed"
-  | "cancelled"
-  | "delayed";
-
-export type TransportType = "bus" | "van" | "taxi" | "car" | "other";
-
-export interface Flight {
-  id: number;
-  airline: string;
-  flight_number: string;
-  departure_airport: string;
-  arrival_airport: string;
-  departure_datetime: string;
-  arrival_datetime: string;
-  gate: string | null;
-  seat_number: string | null;
-  status: FlightStatus;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Accommodation {
-  id: number;
-  hotel_name: string;
-  city: string;
-  building: string | null;
-  floor: string | null;
-  room_number: string;
-  bed_number: string | null;
-  address: string | null;
-  check_in: string;
-  check_out: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Transport {
-  id: number;
-  bus_number: string;
-  pickup_location: string;
-  destination: string;
-  pickup_time: string;
-  driver_name: string;
-  driver_phone: string;
-  transport_type: TransportType;
-  created_at: string;
-  updated_at: string;
-}
+import type { Flight } from "./flights";
+import type { Accommodation } from "./accommodations";
+import type { Transport } from "./transports";
+import type { PaginatedPilgrims } from "./pilgrims";
 
 export interface Package {
   id: number;
@@ -132,6 +81,19 @@ export async function deletePackage(id: number): Promise<void> {
   await apiClient.delete(`/packages/${id}`);
 }
 
-export async function assignPackage(packageId: number, pilgrimId: number): Promise<void> {
-  await apiClient.post(`/packages/${packageId}/assign/${pilgrimId}`);
+export async function assignPackage(packageId: number, pilgrimId: number): Promise<Package> {
+  const { data } = await apiClient.post<Package>(`/packages/${packageId}/assign/${pilgrimId}`);
+  return data;
+}
+
+export async function getPackagePilgrims(
+  packageId: number,
+  page = 1,
+  size = 20,
+  search = ""
+): Promise<PaginatedPilgrims> {
+  const params: Record<string, string | number> = { page, size };
+  if (search) params.search = search;
+  const { data } = await apiClient.get<PaginatedPilgrims>(`/packages/${packageId}/pilgrims`, { params });
+  return data;
 }

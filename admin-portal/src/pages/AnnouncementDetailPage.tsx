@@ -65,7 +65,7 @@ export default function AnnouncementDetailPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{a.title}</h1>
           <p className="text-gray-500 text-sm mt-1">
-            Published {new Date(a.created_at).toLocaleDateString()}
+            Created {new Date(a.created_at).toLocaleDateString()}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -87,7 +87,31 @@ export default function AnnouncementDetailPage() {
           {a.target_id && <span className="text-xs text-gray-500">ID: {a.target_id}</span>}
         </div>
 
-        <div className="text-sm text-gray-700 whitespace-pre-wrap mb-6">{a.message}</div>
+        <div className="mb-4">
+          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Message Template</div>
+          <div className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg border border-gray-100 font-mono">
+            {a.message_template}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          {[
+            { label: "Package Details", value: a.include_package_details },
+            { label: "Flight Details", value: a.include_flight_details },
+            { label: "Transport Details", value: a.include_transport_details },
+            { label: "Accommodation Details", value: a.include_accommodation_details },
+          ].map((opt) => (
+            <span key={opt.label} className={`text-xs px-2 py-1 rounded ${opt.value ? "bg-emerald-50 text-emerald-700" : "bg-gray-50 text-gray-400"}`}>
+              {opt.value ? "\u2713" : "\u2717"} {opt.label}
+            </span>
+          ))}
+        </div>
+
+        {a.send_as_notification && (
+          <div className="mb-4 text-xs bg-purple-50 text-purple-700 px-3 py-1.5 rounded inline-block">
+            Will be sent as push notification
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-200 pt-4">
           <div>
@@ -97,14 +121,6 @@ export default function AnnouncementDetailPage() {
           <div>
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Expiry Date</div>
             <div className="text-sm text-gray-900">{new Date(a.expiry_date).toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Created</div>
-            <div className="text-sm text-gray-900">{new Date(a.created_at).toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Updated</div>
-            <div className="text-sm text-gray-900">{new Date(a.updated_at).toLocaleString()}</div>
           </div>
         </div>
       </div>

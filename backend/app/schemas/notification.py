@@ -1,29 +1,29 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.notification import NotificationType, NotificationStatus
 
 
-class SendNotificationRequest(BaseModel):
-    title: str = Field(..., min_length=1, max_length=255, description="Notification title", examples=["Flight Update"])
-    body: str = Field(..., min_length=1, max_length=2000, description="Notification message body", examples=["Your flight has been rescheduled."])
-    notification_type: NotificationType = Field(..., description="Notification category")
-    pilgrim_ids: list[int] | None = Field(default=None, description="Target pilgrim IDs. Null or empty = broadcast to all active pilgrims.")
-
-
 class NotificationResponse(BaseModel):
     id: int = Field(..., description="Unique notification identifier")
+    pilgrim_id: int = Field(..., description="Target pilgrim ID")
     title: str = Field(..., description="Notification title")
-    body: str = Field(..., description="Notification message body")
+    message: str = Field(..., description="Notification message body")
     notification_type: NotificationType = Field(..., description="Notification category")
-    pilgrim_id: int | None = Field(default=None, description="Target pilgrim ID (null for broadcasts)")
-    is_broadcast: bool = Field(..., description="Whether this was a broadcast notification")
     status: NotificationStatus = Field(..., description="Delivery status")
+    scheduled_time: datetime | None = Field(default=None, description="When the notification is scheduled for")
     sent_at: datetime | None = Field(default=None, description="Timestamp when sent")
+    read_at: datetime | None = Field(default=None, description="Timestamp when read by pilgrim")
+    delivery_mode: str | None = Field(default=None, description="Delivery format (text, audio, text_and_audio)")
+    language: str | None = Field(default=None, description="Notification language")
+    audio_url: str | None = Field(default=None, description="URL to audio file if generated")
+    source_type: str | None = Field(default=None, description="Source entity type (flight, accommodation, transport, package)")
+    source_id: int | None = Field(default=None, description="Source entity ID")
     created_at: datetime = Field(..., description="Record creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PaginatedNotifications(BaseModel):
@@ -46,5 +46,6 @@ class DeviceTokenResponse(BaseModel):
     platform: str = Field(..., description="Device platform")
     is_active: bool = Field(..., description="Whether the token is active")
     created_at: datetime = Field(..., description="Record creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)

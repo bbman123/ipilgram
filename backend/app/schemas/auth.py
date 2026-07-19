@@ -32,6 +32,11 @@ class UserResponse(BaseModel):
     full_name: str = Field(..., description="Full name")
     role: Role = Field(..., description="User role (admin or pilgrim)")
     is_active: bool = Field(..., description="Whether the account is active")
+    package_id: int | None = Field(None, description="Assigned package ID (pilgrims only)")
+    phone: str | None = Field(None, description="Phone number")
+    nationality: str | None = Field(None, description="Nationality")
+    passport_number: str | None = Field(None, description="Passport number")
+    emergency_contact: str | None = Field(None, description="Emergency contact details")
     created_at: datetime = Field(..., description="Account creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 

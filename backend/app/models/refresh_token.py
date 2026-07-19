@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
@@ -16,5 +16,5 @@ class RefreshToken(Base):
         String(500), unique=True, index=True, default=lambda: str(uuid.uuid4())
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    expires_at: Mapped[str] = mapped_column()
+    expires_at: Mapped[datetime] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

@@ -30,6 +30,18 @@ import AnnouncementDetailPage from "./pages/AnnouncementDetailPage";
 import AnnouncementEditPage from "./pages/AnnouncementEditPage";
 import PreferencesPage from "./pages/PreferencesPage";
 import PreferenceEditPage from "./pages/PreferenceEditPage";
+import NotificationsPage from "./pages/NotificationsPage";
+
+function NotFound() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="text-6xl font-bold text-gray-300 mb-4">404</div>
+      <h1 className="text-xl font-semibold text-gray-900 mb-2">Page Not Found</h1>
+      <p className="text-gray-500 mb-6">The page you are looking for does not exist.</p>
+      <a href="/" className="text-emerald-600 hover:text-emerald-700 font-medium text-sm">Back to Dashboard</a>
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -72,6 +84,8 @@ function App() {
             <Route path="settings" element={<PreferencesPage />} />
             <Route path="settings/new" element={<PreferenceEditPage />} />
             <Route path="settings/:id" element={<PreferenceEditPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </BrowserRouter>

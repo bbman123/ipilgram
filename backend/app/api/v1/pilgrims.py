@@ -2,12 +2,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.api.deps import require_role
 from app.core.security import hash_password
 from app.models.user import User, Role
+from app.models.package import Package
 from app.schemas.common import PaginationParams, SortingParams, paginate
 from app.schemas.pilgrim import (
     PaginatedPilgrims,
@@ -38,6 +39,7 @@ def list_pilgrims(
     pagination: Annotated[PaginationParams, Depends()],
     sorting: Annotated[SortingParams, Depends()],
     search: str = Query("", max_length=255, description="Search across name, email, phone, nationality, passport"),
+    package_id: int | None = Query(None, description="Filter by assigned package ID"),
 ):
     query = db.query(User).filter(User.role == Role.pilgrim)
 
@@ -53,11 +55,26 @@ def list_pilgrims(
             )
         )
 
+    if package_id is not None:
+        query = query.filter(User.package_id == package_id)
+
     query = sorting.apply(query, User, ALLOWED_SORT_FIELDS)
     result = paginate(query, pagination)
 
+    pkg_ids = {u.package_id for u in result["items"] if u.package_id}
+    pkg_names = {}
+    if pkg_ids:
+        packages = db.query(Package.id, Package.name).filter(Package.id.in_(pkg_ids)).all()
+        pkg_names = {p.id: p.name for p in packages}
+
+    items = []
+    for u in result["items"]:
+        resp = PilgrimResponse.model_validate(u)
+        resp.package_name = pkg_names.get(u.package_id)
+        items.append(resp)
+
     return PaginatedPilgrims(
-        items=[PilgrimResponse.model_validate(u) for u in result["items"]],
+        items=items,
         total=result["total"],
         page=result["page"],
         size=result["size"],

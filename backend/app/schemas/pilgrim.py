@@ -37,6 +37,7 @@ class PilgrimResponse(BaseModel):
     passport_number: str | None = Field(default=None, description="Passport number")
     emergency_contact: str | None = Field(default=None, description="Emergency contact")
     package_id: int | None = Field(default=None, description="Assigned package ID")
+    package_name: str | None = Field(default=None, description="Name of assigned package")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 

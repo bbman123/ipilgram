@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
-import { getPackage, deletePackage, type PackageDetail } from "../api/packages";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
+import { getPackage, deletePackage, getPackagePilgrims, type PackageDetail } from "../api/packages";
+import type { Pilgrim } from "../api/pilgrims";
 
 export default function PackageDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -10,13 +11,40 @@ export default function PackageDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const [pilgrims, setPilgrims] = useState<Pilgrim[]>([]);
+  const [pilgrimTotal, setPilgrimTotal] = useState(0);
+  const [pilgrimPages, setPilgrimPages] = useState(1);
+  const [pilgrimLoading, setPilgrimLoading] = useState(true);
+  const [pilgrimPage, setPilgrimPage] = useState(1);
+  const [pilgrimSearch, setPilgrimSearch] = useState("");
+  const [pilgrimSearchInput, setPilgrimSearchInput] = useState("");
+
+  const fetchPilgrims = useCallback(async () => {
+    if (!id) return;
+    setPilgrimLoading(true);
+    try {
+      const data = await getPackagePilgrims(Number(id), pilgrimPage, 10, pilgrimSearch);
+      setPilgrims(data.items);
+      setPilgrimTotal(data.total);
+      setPilgrimPages(data.pages);
+    } finally {
+      setPilgrimLoading(false);
+    }
+  }, [id, pilgrimPage, pilgrimSearch]);
+
   useEffect(() => {
     if (!id) return;
     getPackage(Number(id))
-      .then(setPkg)
+      .then((p) => {
+        setPkg(p);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    fetchPilgrims();
+  }, [fetchPilgrims]);
 
   async function handleDelete() {
     if (!id) return;
@@ -163,6 +191,90 @@ export default function PackageDetailPage() {
             <p className="text-sm text-gray-500 text-center py-4">No flight, accommodation, or transport assigned to this package yet.</p>
           </div>
         )}
+
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Assigned Pilgrims</h2>
+              <p className="text-gray-500 text-sm mt-0.5">{pilgrimTotal} pilgrim{pilgrimTotal !== 1 ? "s" : ""} in this package</p>
+            </div>
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); setPilgrimSearch(pilgrimSearchInput); setPilgrimPage(1); }}
+            className="mb-3 flex gap-2">
+            <input
+              type="text"
+              value={pilgrimSearchInput}
+              onChange={(e) => setPilgrimSearchInput(e.target.value)}
+              placeholder="Search pilgrims..."
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <button type="submit" className="px-3 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800">
+              Search
+            </button>
+            {pilgrimSearch && (
+              <button type="button" onClick={() => { setPilgrimSearchInput(""); setPilgrimSearch(""); setPilgrimPage(1); }}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                Clear
+              </button>
+            )}
+          </form>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Phone</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pilgrimLoading ? (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
+                ) : pilgrims.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    {pilgrimSearch ? "No pilgrims match your search." : "No pilgrims assigned to this package yet."}
+                  </td></tr>
+                ) : (
+                  pilgrims.map((p) => (
+                    <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <Link to={`/pilgrims/${p.id}`} className="text-gray-900 font-medium hover:text-emerald-600">
+                          {p.full_name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{p.email}</td>
+                      <td className="px-4 py-3 text-gray-600">{p.phone || "-"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block text-xs px-2 py-0.5 rounded-full ${p.is_active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                          {p.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link to={`/pilgrims/${p.id}`} className="text-gray-500 hover:text-gray-700 text-xs">View</Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {pilgrimPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 mt-3">
+              <span className="text-sm text-gray-500">Page {pilgrimPage} of {pilgrimPages}</span>
+              <div className="flex gap-1">
+                <button onClick={() => setPilgrimPage(pilgrimPage - 1)} disabled={pilgrimPage <= 1}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50">Prev</button>
+                <button onClick={() => setPilgrimPage(pilgrimPage + 1)} disabled={pilgrimPage >= pilgrimPages}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50">Next</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {showDelete && (

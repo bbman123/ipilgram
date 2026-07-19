@@ -16,7 +16,18 @@ class AIProvider(ABC):
     without changing the personalization engine.
     """
 
+    @property
     @abstractmethod
-    async def generate(self, prompt: str, system_instruction: str = "") -> AIResponse:
+    def name(self) -> str:
+        """Provider identifier (e.g. 'gemini', 'openai')."""
+        ...
+
+    @abstractmethod
+    def generate(self, prompt: str, system_instruction: str = "") -> AIResponse:
         """Send a prompt to the AI and return the response text."""
+        ...
+
+    @abstractmethod
+    def is_configured(self) -> bool:
+        """Check if the provider has valid credentials."""
         ...

@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import String, Text, Enum, DateTime, Integer
+from sqlalchemy import String, Text, Enum, DateTime, Integer, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -29,7 +29,7 @@ class Announcement(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(255))
-    message: Mapped[str] = mapped_column(Text)
+    message_template: Mapped[str] = mapped_column(Text)
     priority: Mapped[AnnouncementPriority] = mapped_column(
         Enum(AnnouncementPriority), default=AnnouncementPriority.medium
     )
@@ -39,6 +39,11 @@ class Announcement(Base):
     target_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     publish_date: Mapped[datetime] = mapped_column(DateTime)
     expiry_date: Mapped[datetime] = mapped_column(DateTime)
+    include_package_details: Mapped[bool] = mapped_column(Boolean, default=False)
+    include_flight_details: Mapped[bool] = mapped_column(Boolean, default=False)
+    include_transport_details: Mapped[bool] = mapped_column(Boolean, default=False)
+    include_accommodation_details: Mapped[bool] = mapped_column(Boolean, default=False)
+    send_as_notification: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
