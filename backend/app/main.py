@@ -6,14 +6,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import get_settings
+from app.core.rate_limit import limiter
 from app.api.v1.router import api_router
 from app.middleware import RequestIDMiddleware, SecurityHeadersMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.services.notification_engine import run_notification_engine
 
@@ -48,7 +48,6 @@ async def lifespan(application: FastAPI):
         _scheduler.shutdown(wait=False)
         logger.info("Notification engine scheduler stopped")
 
-limiter = Limiter(key_func=get_remote_address)
 
 TAGS_METADATA = [
     {"name": "Health", "description": "Service health checks"},
@@ -88,6 +87,14 @@ def create_app() -> FastAPI:
     application.add_middleware(RequestIDMiddleware)
     application.add_middleware(SecurityHeadersMiddleware)
 
+    if settings.DEBUG:
+        application.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+    else:
+        application.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=["localhost", "127.0.0.1", ".onrender.com", ".railway.app", ".fly.dev"],
+        )
+
     allowed_origins = settings.CORS_ORIGINS
     if settings.DEBUG and "localhost" not in str(allowed_origins):
         allowed_origins = ["http://localhost:5173"]
@@ -96,8 +103,9 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=allowed_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        expose_headers=["X-Request-ID", "X-Response-Time"],
     )
 
     @application.exception_handler(RequestValidationError)
@@ -108,7 +116,7 @@ def create_app() -> FastAPI:
             errors.append({"field": loc, "message": error["msg"]})
         return JSONResponse(
             status_code=422,
-            content={"detail": "Validation error", "errors": errors},
+            content={"success": False, "message": "Validation error", "data": None, "errors": errors},
         )
 
     @application.exception_handler(IntegrityError)
@@ -117,21 +125,21 @@ def create_app() -> FastAPI:
         logger.error("IntegrityError [%s]: %s", request_id, str(exc.orig))
         return JSONResponse(
             status_code=409,
-            content={"detail": "Database constraint violation. The request conflicts with existing data."},
+            content={"success": False, "message": "Database constraint violation", "data": None, "errors": None},
         )
 
     @application.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
         request_id = getattr(request.state, "request_id", "unknown")
-        logger.error("Unhandled exception [%s]: %s", request_id, str(exc), exc_info=True)
+        logger.error("Unhandled exception [%s]: %s", request_id, str(exc))
         if settings.DEBUG:
             return JSONResponse(
                 status_code=500,
-                content={"detail": f"Internal server error: {str(exc)}"},
+                content={"success": False, "message": str(exc), "data": None, "errors": None},
             )
         return JSONResponse(
             status_code=500,
-            content={"detail": "Internal server error"},
+            content={"success": False, "message": "Internal server error", "data": None, "errors": None},
         )
 
     application.include_router(api_router)
@@ -142,7 +150,7 @@ def create_app() -> FastAPI:
 async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=429,
-        content={"detail": "Rate limit exceeded. Please try again later."},
+        content={"success": False, "message": "Rate limit exceeded. Please try again later.", "data": None, "errors": None},
     )
 
 

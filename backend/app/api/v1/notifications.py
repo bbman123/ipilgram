@@ -15,6 +15,7 @@ from app.models.notification import (
     DeviceToken,
 )
 from app.schemas.common import PaginationParams, SortingParams, paginate
+from app.schemas.response import success_response
 from app.schemas.notification import (
     NotificationResponse,
     PaginatedNotifications,
@@ -32,7 +33,6 @@ ALLOWED_SORT_FIELDS = ["id", "notification_type", "status", "created_at", "sent_
 
 @router.get(
     "",
-    response_model=PaginatedNotifications,
     summary="List all notifications (admin)",
     description="Admin endpoint. Retrieve a paginated list of all notifications across all pilgrims. Supports filtering by type and status.",
     responses={
@@ -62,18 +62,20 @@ def list_notifications(
     query = sorting.apply(query, Notification, ALLOWED_SORT_FIELDS)
     result = paginate(query, pagination)
 
-    return PaginatedNotifications(
-        items=[NotificationResponse.model_validate(n) for n in result["items"]],
-        total=result["total"],
-        page=result["page"],
-        size=result["size"],
-        pages=result["pages"],
+    return success_response(
+        data=PaginatedNotifications(
+            items=[NotificationResponse.model_validate(n) for n in result["items"]],
+            total=result["total"],
+            page=result["page"],
+            size=result["size"],
+            pages=result["pages"],
+        ).model_dump(),
+        message="Notifications retrieved successfully",
     )
 
 
 @router.get(
     "/my",
-    response_model=list[NotificationResponse],
     summary="Get my notifications (pilgrim)",
     description="Pilgrim endpoint. Retrieve all notifications for the authenticated pilgrim, ordered by scheduled_time.",
     responses={
@@ -93,12 +95,14 @@ def get_my_notifications(
         .limit(50)
         .all()
     )
-    return [NotificationResponse.model_validate(n) for n in notifications]
+    return success_response(
+        data=[NotificationResponse.model_validate(n).model_dump() for n in notifications],
+        message="My notifications retrieved successfully",
+    )
 
 
 @router.patch(
     "/{notification_id}/read",
-    response_model=NotificationResponse,
     summary="Mark notification as read",
     description="Mark a single notification as read by setting read_at and status to 'read'.",
     responses={
@@ -124,12 +128,11 @@ def mark_notification_read(
     n.status = NotificationStatus.read
     db.commit()
     db.refresh(n)
-    return NotificationResponse.model_validate(n)
+    return success_response(data=NotificationResponse.model_validate(n).model_dump(), message="Notification marked as read")
 
 
 @router.post(
     "/devices",
-    response_model=DeviceTokenResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register device token",
     description=(
@@ -152,7 +155,7 @@ def register_device(
         existing.platform = body.platform
         db.commit()
         db.refresh(existing)
-        return DeviceTokenResponse.model_validate(existing)
+    return success_response(data=DeviceTokenResponse.model_validate(existing).model_dump(), message="Device token reactivated")
 
     dt = DeviceToken(
         pilgrim_id=current_user.id,
@@ -162,7 +165,7 @@ def register_device(
     db.add(dt)
     db.commit()
     db.refresh(dt)
-    return DeviceTokenResponse.model_validate(dt)
+    return success_response(data=DeviceTokenResponse.model_validate(dt).model_dump(), message="Device token registered")
 
 
 @router.delete(

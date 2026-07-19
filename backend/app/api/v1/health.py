@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from app.schemas.response import success_response
+
 router = APIRouter(tags=["Health"])
 
 
@@ -10,7 +12,6 @@ class HealthResponse(BaseModel):
 
 @router.get(
     "/health",
-    response_model=HealthResponse,
     summary="Service health check",
     description="Returns the health status of the API service. No authentication required.",
     responses={
@@ -19,4 +20,4 @@ class HealthResponse(BaseModel):
 )
 def health_check():
     """Check if the API service is running and healthy."""
-    return {"status": "healthy"}
+    return success_response(data=HealthResponse(status="healthy").model_dump(), message="Service is healthy")

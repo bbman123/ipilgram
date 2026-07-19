@@ -2,6 +2,7 @@ import uuid
 import time
 
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -30,8 +31,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "0"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
 
         if request.url.scheme == "https":
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+            response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+            response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+            response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
 
         return response

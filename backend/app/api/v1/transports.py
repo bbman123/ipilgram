@@ -9,6 +9,7 @@ from app.api.deps import require_role
 from app.models.user import User, Role
 from app.models.transport import Transport, TransportType
 from app.schemas.common import PaginationParams, SortingParams, paginate
+from app.schemas.response import success_response
 from app.schemas.transport import (
     TransportCreate,
     TransportResponse,
@@ -23,7 +24,6 @@ ALLOWED_SORT_FIELDS = ["id", "bus_number", "pickup_location", "destination", "pi
 
 @router.get(
     "",
-    response_model=PaginatedTransports,
     summary="List all transports",
     description="Retrieve a paginated list of transport records. Supports search, sorting, and filtering by type.",
     responses={
@@ -59,18 +59,20 @@ def list_transports(
     query = sorting.apply(query, Transport, ALLOWED_SORT_FIELDS)
     result = paginate(query, pagination)
 
-    return PaginatedTransports(
-        items=[TransportResponse.model_validate(t) for t in result["items"]],
-        total=result["total"],
-        page=result["page"],
-        size=result["size"],
-        pages=result["pages"],
+    return success_response(
+        data=PaginatedTransports(
+            items=[TransportResponse.model_validate(t) for t in result["items"]],
+            total=result["total"],
+            page=result["page"],
+            size=result["size"],
+            pages=result["pages"],
+        ).model_dump(),
+        message="Transports retrieved successfully",
     )
 
 
 @router.get(
     "/{transport_id}",
-    response_model=TransportResponse,
     summary="Get transport by ID",
     description="Retrieve a single transport record.",
     responses={
@@ -90,12 +92,11 @@ def get_transport(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Transport not found"
         )
-    return TransportResponse.model_validate(t)
+    return success_response(data=TransportResponse.model_validate(t).model_dump(), message="Transport retrieved successfully")
 
 
 @router.post(
     "",
-    response_model=TransportResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new transport assignment",
     description="Register a new ground transport record.",
@@ -114,12 +115,11 @@ def create_transport(
     db.add(t)
     db.commit()
     db.refresh(t)
-    return TransportResponse.model_validate(t)
+    return success_response(data=TransportResponse.model_validate(t).model_dump(), message="Transport created successfully")
 
 
 @router.put(
     "/{transport_id}",
-    response_model=TransportResponse,
     summary="Update transport details",
     description="Update an existing transport record. Only provided fields are modified.",
     responses={
@@ -147,7 +147,7 @@ def update_transport(
 
     db.commit()
     db.refresh(t)
-    return TransportResponse.model_validate(t)
+    return success_response(data=TransportResponse.model_validate(t).model_dump(), message="Transport updated successfully")
 
 
 @router.delete(

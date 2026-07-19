@@ -1,0 +1,53 @@
+# ==========================================
+# Docker Compose — Development
+# ==========================================
+# Usage: docker compose up --build
+# ==========================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: hajj_db_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hajj_pilgrims
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hajj_pilgrims"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hajj_api_dev
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/hajj_pilgrims
+      SECRET_KEY: dev-secret-key-change-in-production-min-32-chars
+      DEBUG: "True"
+      CORS_ORIGINS: '["http://localhost:5173"]'
+      GEMINI_API_KEY: ""
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      WORKERS: "1"
+    volumes:
+      - ./backend:/app
+      - audio_cache_dev:/app/audio_cache
+
+volumes:
+  pgdata_dev:
+  audio_cache_dev:

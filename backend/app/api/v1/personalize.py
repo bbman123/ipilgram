@@ -2,10 +2,12 @@ import logging
 import os
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.api.deps import require_role
 from app.core.database import get_db
+from app.core.rate_limit import limiter
+from app.schemas.response import success_response
 from app.models.user import User, Role
 from app.schemas.personalize import (
     SimplifyRequest,
@@ -44,7 +46,6 @@ def _get_engine() -> PersonalizationEngine:
 
 @router.post(
     "/ask",
-    response_model=AIQueryResponse,
     summary="Ask a question about your Hajj data",
     description=(
         "Pilgrim sends a question. Backend builds context from their own "
@@ -59,8 +60,10 @@ def _get_engine() -> PersonalizationEngine:
         502: {"description": "AI provider error"},
     },
 )
+@limiter.limit("20/minute")
 def ask_ai(
     body: PilgrimQueryRequest,
+    request: Request,
     pilgrim: Annotated[User, Depends(require_role(Role.pilgrim))],
     db: Annotated[object, Depends(get_db)],
 ):
@@ -74,7 +77,7 @@ def ask_ai(
             detail="AI provider error. Please try again later.",
         )
 
-    return AIQueryResponse(**result)
+    return success_response(data=AIQueryResponse(**result).model_dump(), message="AI response generated")
 
 
 @router.post(
@@ -92,8 +95,10 @@ def ask_ai(
         503: {"description": "AI provider or TTS not configured"},
     },
 )
+@limiter.limit("10/minute")
 def ask_ai_audio(
     body: PilgrimQueryRequest,
+    request: Request,
     pilgrim: Annotated[User, Depends(require_role(Role.pilgrim))],
     db: Annotated[object, Depends(get_db)],
 ):
@@ -138,7 +143,6 @@ def ask_ai_audio(
 
 @router.post(
     "/simplify",
-    response_model=SimplifyResponse,
     summary="Simplify announcement text",
     description="Use AI to rewrite a Hajj announcement in plain, easy-to-understand language.",
     responses={
@@ -163,17 +167,19 @@ def simplify_announcement(
             detail="AI provider error. Please try again later.",
         )
 
-    return SimplifyResponse(
-        original=body.text,
-        simplified=result["response"],
-        language=body.language.value,
-        model_used="",
+    return success_response(
+        data=SimplifyResponse(
+            original=body.text,
+            simplified=result["response"],
+            language=body.language.value,
+            model_used="",
+        ).model_dump(),
+        message="Text simplified successfully",
     )
 
 
 @router.post(
     "/translate",
-    response_model=TranslateResponse,
     summary="Translate announcement text",
     description="Translate Hajj information between supported languages using AI.",
     responses={
@@ -202,18 +208,20 @@ def translate_announcement(
             detail="AI provider error. Please try again later.",
         )
 
-    return TranslateResponse(
-        original=body.text,
-        translated=result["response"],
-        source_language=body.source_language.value,
-        target_language=body.target_language.value,
-        model_used="",
+    return success_response(
+        data=TranslateResponse(
+            original=body.text,
+            translated=result["response"],
+            source_language=body.source_language.value,
+            target_language=body.target_language.value,
+            model_used="",
+        ).model_dump(),
+        message="Text translated successfully",
     )
 
 
 @router.post(
     "/process",
-    response_model=ProcessResponse,
     summary="Full AI processing pipeline",
     description="Run the complete personalization pipeline: simplify text, translate to target language, and optionally prepare audio output.",
     responses={
@@ -242,12 +250,11 @@ def process_announcement(
             detail="AI provider error. Please try again later.",
         )
 
-    return ProcessResponse(**result)
+    return success_response(data=ProcessResponse(**result).model_dump(), message="Announcement processed successfully")
 
 
 @router.get(
     "/health",
-    response_model=HealthCheckResponse,
     summary="Check AI provider status",
     description="Verify if the AI personalization provider (Gemini) is configured and available.",
     responses={
@@ -260,7 +267,10 @@ def ai_health(
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
     api_key = os.environ.get("GEMINI_API_KEY", "")
-    return HealthCheckResponse(
-        provider="gemini",
-        configured=bool(api_key),
+    return success_response(
+        data=HealthCheckResponse(
+            provider="gemini",
+            configured=bool(api_key),
+        ).model_dump(),
+        message="AI health check completed",
     )

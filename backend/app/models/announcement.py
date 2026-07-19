@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import String, Text, Enum, DateTime, Integer, Boolean
+from sqlalchemy import String, Text, Enum, DateTime, Integer, Boolean, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -47,4 +47,8 @@ class Announcement(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        Index("ix_announcements_target", "target_type", "target_id"),
     )

@@ -2,8 +2,6 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -14,6 +12,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+from app.core.rate_limit import limiter
 from app.api.deps import get_current_user
 from app.models.user import User, Role
 from app.models.refresh_token import RefreshToken
@@ -24,17 +23,15 @@ from app.schemas.auth import (
     UserRegister,
     UserResponse,
 )
+from app.schemas.response import success_response
 
 logger = logging.getLogger("hajj_api")
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-limiter = Limiter(key_func=get_remote_address)
-
 
 @router.post(
     "/register",
-    response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new pilgrim account",
     description="Create a new user account with pilgrim role. Email must be unique.",
@@ -60,12 +57,11 @@ def register(request: Request, body: UserRegister, db: Annotated[Session, Depend
     db.add(user)
     db.commit()
     db.refresh(user)
-    return UserResponse.model_validate(user)
+    return success_response(data=UserResponse.model_validate(user).model_dump(), message="Account created successfully")
 
 
 @router.post(
     "/login",
-    response_model=TokenResponse,
     summary="Authenticate and obtain tokens",
     description="Login with email and password to receive an access token and refresh token pair.",
     responses={
@@ -98,12 +94,11 @@ def login(request: Request, body: UserLogin, db: Annotated[Session, Depends(get_
     db.add(db_token)
     db.commit()
 
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+    return success_response(data=TokenResponse(access_token=access_token, refresh_token=refresh_token).model_dump(), message="Login successful")
 
 
 @router.post(
     "/refresh",
-    response_model=TokenResponse,
     summary="Refresh access token",
     description="Exchange a valid refresh token for a new access/refresh token pair. The old refresh token is revoked (rotation).",
     responses={
@@ -138,7 +133,6 @@ def refresh(body: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
         )
 
     db.delete(matched_token)
-    db.commit()
 
     access_token = create_access_token(data={"sub": user.id, "role": user.role.value})
     refresh_token, expires_at = create_refresh_token(data={"sub": user.id})
@@ -151,7 +145,7 @@ def refresh(body: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
     db.add(new_db_token)
     db.commit()
 
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+    return success_response(data=TokenResponse(access_token=access_token, refresh_token=refresh_token).model_dump(), message="Token refreshed successfully")
 
 
 @router.post(
@@ -181,7 +175,6 @@ def logout(
 
 @router.get(
     "/me",
-    response_model=UserResponse,
     summary="Get current user profile",
     description="Returns the authenticated user's profile information.",
     responses={
@@ -190,4 +183,4 @@ def logout(
     },
 )
 def me(current_user: Annotated[User, Depends(get_current_user)]):
-    return UserResponse.model_validate(current_user)
+    return success_response(data=UserResponse.model_validate(current_user).model_dump(), message="Profile retrieved successfully")

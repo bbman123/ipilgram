@@ -3,10 +3,12 @@ import logging
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
 
 from app.api.deps import require_role
+from app.core.rate_limit import limiter
+from app.schemas.response import success_response
 from app.models.user import User, Role
 from app.schemas.tts import TTSRequest, TTSResponse
 from app.services.tts import generate_audio, AUDIO_CACHE_DIR
@@ -18,7 +20,6 @@ router = APIRouter(prefix="/tts", tags=["Text-to-Speech"])
 
 @router.post(
     "",
-    response_model=TTSResponse,
     summary="Convert text to speech",
     description="Generate an MP3 audio file from text. Supports English, Hausa, Yoruba, Igbo, and Arabic. Cached by text+language hash.",
     responses={
@@ -28,8 +29,10 @@ router = APIRouter(prefix="/tts", tags=["Text-to-Speech"])
         500: {"description": "TTS generation failed"},
     },
 )
+@limiter.limit("10/minute")
 def text_to_speech(
     body: TTSRequest,
+    request: Request,
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
     try:
@@ -47,10 +50,13 @@ def text_to_speech(
     key = hashlib.sha256(f"{body.text}:{lang_code}".encode()).hexdigest()
     cached = (AUDIO_CACHE_DIR / f"{key}.mp3").exists()
 
-    return TTSResponse(
-        audio_url=audio_url,
-        language=body.language.value,
-        cached=cached,
+    return success_response(
+        data=TTSResponse(
+            audio_url=audio_url,
+            language=body.language.value,
+            cached=cached,
+        ).model_dump(),
+        message="TTS generated successfully",
     )
 
 

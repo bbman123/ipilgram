@@ -15,6 +15,7 @@ from app.models.flight import Flight
 from app.models.accommodation import Accommodation
 from app.models.transport import Transport
 from app.schemas.common import PaginationParams, SortingParams, paginate
+from app.schemas.response import success_response
 from app.schemas.announcement import (
     AnnouncementCreate,
     AnnouncementResponse,
@@ -140,7 +141,6 @@ def _get_matching_pilgrim_ids(announcement: Announcement, db: Session) -> list[i
 
 @router.get(
     "",
-    response_model=PaginatedAnnouncements,
     summary="List all announcement templates",
     description="Admin endpoint. Retrieve a paginated list of announcement templates. Supports search and filtering.",
     responses={
@@ -176,18 +176,20 @@ def list_announcements(
     query = sorting.apply(query, Announcement, ALLOWED_SORT_FIELDS)
     result = paginate(query, pagination)
 
-    return PaginatedAnnouncements(
-        items=[AnnouncementResponse.model_validate(a) for a in result["items"]],
-        total=result["total"],
-        page=result["page"],
-        size=result["size"],
-        pages=result["pages"],
+    return success_response(
+        data=PaginatedAnnouncements(
+            items=[AnnouncementResponse.model_validate(a) for a in result["items"]],
+            total=result["total"],
+            page=result["page"],
+            size=result["size"],
+            pages=result["pages"],
+        ).model_dump(),
+        message="Announcements retrieved successfully",
     )
 
 
 @router.get(
     "/my",
-    response_model=list[PersonalizedAnnouncement],
     summary="Get personalized announcements for authenticated pilgrim",
     description=(
         "Pilgrim endpoint. Returns announcements matching the pilgrim's targeting with "
@@ -265,7 +267,7 @@ def get_my_announcements(
             )
         )
 
-    return personalized
+    return success_response(data=[pa.model_dump() for pa in personalized], message="Personalized announcements retrieved successfully")
 
 
 @router.get(
@@ -277,12 +279,11 @@ def get_my_announcements(
     },
 )
 def list_placeholders():
-    return {"placeholders": AVAILABLE_PLACEHOLDERS}
+    return success_response(data={"placeholders": AVAILABLE_PLACEHOLDERS}, message="Placeholders retrieved successfully")
 
 
 @router.get(
     "/active",
-    response_model=list[AnnouncementResponse],
     summary="Get currently active announcements",
     description="Public-ish endpoint. Returns all announcements within their publish/expiry window.",
     responses={
@@ -302,12 +303,11 @@ def get_active_announcements(
         .order_by(Announcement.created_at.desc())
         .all()
     )
-    return [AnnouncementResponse.model_validate(a) for a in announcements]
+    return success_response(data=[AnnouncementResponse.model_validate(a).model_dump() for a in announcements], message="Active announcements retrieved successfully")
 
 
 @router.get(
     "/{announcement_id}",
-    response_model=AnnouncementResponse,
     summary="Get announcement by ID",
     description="Retrieve a single announcement template by its unique identifier.",
     responses={
@@ -325,12 +325,11 @@ def get_announcement(
     a = db.query(Announcement).filter(Announcement.id == announcement_id).first()
     if not a:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Announcement not found")
-    return AnnouncementResponse.model_validate(a)
+    return success_response(data=AnnouncementResponse.model_validate(a).model_dump(), message="Announcement retrieved successfully")
 
 
 @router.post(
     "",
-    response_model=AnnouncementResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create announcement template",
     description=(
@@ -355,12 +354,11 @@ def create_announcement(
     db.add(a)
     db.commit()
     db.refresh(a)
-    return AnnouncementResponse.model_validate(a)
+    return success_response(data=AnnouncementResponse.model_validate(a).model_dump(), message="Announcement created successfully")
 
 
 @router.put(
     "/{announcement_id}",
-    response_model=AnnouncementResponse,
     summary="Update announcement template",
     description="Update an existing announcement template. Only provided fields are modified.",
     responses={
@@ -398,7 +396,7 @@ def update_announcement(
 
     db.commit()
     db.refresh(a)
-    return AnnouncementResponse.model_validate(a)
+    return success_response(data=AnnouncementResponse.model_validate(a).model_dump(), message="Announcement updated successfully")
 
 
 @router.delete(

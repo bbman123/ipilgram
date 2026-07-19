@@ -9,6 +9,7 @@ from app.api.deps import require_role
 from app.models.user import User, Role
 from app.models.accommodation import Accommodation
 from app.schemas.common import PaginationParams, SortingParams, paginate
+from app.schemas.response import success_response
 from app.schemas.accommodation import (
     AccommodationCreate,
     AccommodationResponse,
@@ -23,7 +24,6 @@ ALLOWED_SORT_FIELDS = ["id", "hotel_name", "city", "check_in", "check_out", "cre
 
 @router.get(
     "",
-    response_model=PaginatedAccommodations,
     summary="List all accommodations",
     description="Retrieve a paginated list of accommodations. Supports search, sorting, and filtering by city.",
     responses={
@@ -58,18 +58,20 @@ def list_accommodations(
     query = sorting.apply(query, Accommodation, ALLOWED_SORT_FIELDS)
     result = paginate(query, pagination)
 
-    return PaginatedAccommodations(
-        items=[AccommodationResponse.model_validate(a) for a in result["items"]],
-        total=result["total"],
-        page=result["page"],
-        size=result["size"],
-        pages=result["pages"],
+    return success_response(
+        data=PaginatedAccommodations(
+            items=[AccommodationResponse.model_validate(a) for a in result["items"]],
+            total=result["total"],
+            page=result["page"],
+            size=result["size"],
+            pages=result["pages"],
+        ).model_dump(),
+        message="Accommodations retrieved successfully",
     )
 
 
 @router.get(
     "/{accommodation_id}",
-    response_model=AccommodationResponse,
     summary="Get accommodation by ID",
     description="Retrieve a single accommodation record.",
     responses={
@@ -89,12 +91,11 @@ def get_accommodation(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Accommodation not found"
         )
-    return AccommodationResponse.model_validate(acc)
+    return success_response(data=AccommodationResponse.model_validate(acc).model_dump(), message="Accommodation retrieved successfully")
 
 
 @router.post(
     "",
-    response_model=AccommodationResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new accommodation",
     description="Register a new accommodation record. Validates check-out is after check-in.",
@@ -120,12 +121,11 @@ def create_accommodation(
     db.add(acc)
     db.commit()
     db.refresh(acc)
-    return AccommodationResponse.model_validate(acc)
+    return success_response(data=AccommodationResponse.model_validate(acc).model_dump(), message="Accommodation created successfully")
 
 
 @router.put(
     "/{accommodation_id}",
-    response_model=AccommodationResponse,
     summary="Update accommodation details",
     description="Update an existing accommodation record. Only provided fields are modified.",
     responses={
@@ -163,7 +163,7 @@ def update_accommodation(
 
     db.commit()
     db.refresh(acc)
-    return AccommodationResponse.model_validate(acc)
+    return success_response(data=AccommodationResponse.model_validate(acc).model_dump(), message="Accommodation updated successfully")
 
 
 @router.delete(

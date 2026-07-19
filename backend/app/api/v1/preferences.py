@@ -9,6 +9,7 @@ from app.api.deps import require_role
 from app.models.user import User, Role
 from app.models.preference import Preference
 from app.schemas.common import PaginationParams, SortingParams, paginate
+from app.schemas.response import success_response
 from app.schemas.preference import (
     PreferenceCreate,
     PreferenceResponse,
@@ -39,7 +40,6 @@ def _enrich_pref(pref: Preference, pilgrim: User | None) -> PreferenceWithPilgri
 
 @router.get(
     "",
-    response_model=PaginatedPreferences,
     summary="List all preferences",
     description="Retrieve a paginated list of pilgrim preferences. Supports search, sorting, and filtering by language and delivery mode.",
     responses={
@@ -87,18 +87,20 @@ def list_preferences(
         users = db.query(User).filter(User.id.in_(pilgrim_ids)).all()
         pilgrims = {u.id: u for u in users}
 
-    return PaginatedPreferences(
-        items=[_enrich_pref(p, pilgrims.get(p.pilgrim_id)) for p in result["items"]],
-        total=result["total"],
-        page=result["page"],
-        size=result["size"],
-        pages=result["pages"],
+    return success_response(
+        data=PaginatedPreferences(
+            items=[_enrich_pref(p, pilgrims.get(p.pilgrim_id)) for p in result["items"]],
+            total=result["total"],
+            page=result["page"],
+            size=result["size"],
+            pages=result["pages"],
+        ).model_dump(),
+        message="Preferences retrieved successfully",
     )
 
 
 @router.get(
     "/by-pilgrim/{pilgrim_id}",
-    response_model=PreferenceWithPilgrim,
     summary="Get preference by pilgrim ID",
     description="Retrieve preferences for a specific pilgrim by their user ID.",
     responses={
@@ -120,12 +122,11 @@ def get_preference_by_pilgrim(
             detail="Preference not found for this pilgrim",
         )
     pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
-    return _enrich_pref(pref, pilgrim)
+    return success_response(data=_enrich_pref(pref, pilgrim).model_dump(), message="Preference retrieved successfully")
 
 
 @router.get(
     "/{preference_id}",
-    response_model=PreferenceWithPilgrim,
     summary="Get preference by ID",
     description="Retrieve a single preference record with pilgrim details.",
     responses={
@@ -146,12 +147,11 @@ def get_preference(
             status_code=status.HTTP_404_NOT_FOUND, detail="Preference not found"
         )
     pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
-    return _enrich_pref(pref, pilgrim)
+    return success_response(data=_enrich_pref(pref, pilgrim).model_dump(), message="Preference retrieved successfully")
 
 
 @router.post(
     "",
-    response_model=PreferenceWithPilgrim,
     status_code=status.HTTP_201_CREATED,
     summary="Create pilgrim preferences",
     description="Set display and notification preferences for a pilgrim. Each pilgrim can only have one preference record.",
@@ -191,12 +191,11 @@ def create_preference(
     db.add(pref)
     db.commit()
     db.refresh(pref)
-    return _enrich_pref(pref, pilgrim)
+    return success_response(data=_enrich_pref(pref, pilgrim).model_dump(), message="Preference created successfully")
 
 
 @router.put(
     "/{preference_id}",
-    response_model=PreferenceWithPilgrim,
     summary="Update pilgrim preferences",
     description="Update an existing preference record. Only provided fields are modified.",
     responses={
@@ -227,7 +226,7 @@ def update_preference(
     db.commit()
     db.refresh(pref)
     pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
-    return _enrich_pref(pref, pilgrim)
+    return success_response(data=_enrich_pref(pref, pilgrim).model_dump(), message="Preference updated successfully")
 
 
 @router.delete(

@@ -10,6 +10,7 @@ from app.core.security import hash_password
 from app.models.user import User, Role
 from app.models.package import Package
 from app.schemas.common import PaginationParams, SortingParams, paginate
+from app.schemas.response import success_response
 from app.schemas.pilgrim import (
     PaginatedPilgrims,
     PilgrimCreate,
@@ -24,7 +25,6 @@ ALLOWED_SORT_FIELDS = ["id", "full_name", "email", "created_at"]
 
 @router.get(
     "",
-    response_model=PaginatedPilgrims,
     summary="List all pilgrims",
     description="Retrieve a paginated list of pilgrims. Supports search, sorting, and pagination.",
     responses={
@@ -73,18 +73,20 @@ def list_pilgrims(
         resp.package_name = pkg_names.get(u.package_id)
         items.append(resp)
 
-    return PaginatedPilgrims(
-        items=items,
-        total=result["total"],
-        page=result["page"],
-        size=result["size"],
-        pages=result["pages"],
+    return success_response(
+        data=PaginatedPilgrims(
+            items=items,
+            total=result["total"],
+            page=result["page"],
+            size=result["size"],
+            pages=result["pages"],
+        ).model_dump(),
+        message="Pilgrims retrieved successfully",
     )
 
 
 @router.get(
     "/{pilgrim_id}",
-    response_model=PilgrimResponse,
     summary="Get pilgrim by ID",
     description="Retrieve a single pilgrim's profile by their unique identifier.",
     responses={
@@ -108,12 +110,11 @@ def get_pilgrim(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Pilgrim not found"
         )
-    return PilgrimResponse.model_validate(user)
+    return success_response(data=PilgrimResponse.model_validate(user).model_dump(), message="Pilgrim retrieved successfully")
 
 
 @router.post(
     "",
-    response_model=PilgrimResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new pilgrim",
     description="Register a new pilgrim account. Email must be unique across the system.",
@@ -148,12 +149,11 @@ def create_pilgrim(
     db.add(user)
     db.commit()
     db.refresh(user)
-    return PilgrimResponse.model_validate(user)
+    return success_response(data=PilgrimResponse.model_validate(user).model_dump(), message="Pilgrim created successfully")
 
 
 @router.put(
     "/{pilgrim_id}",
-    response_model=PilgrimResponse,
     summary="Update pilgrim profile",
     description="Update an existing pilgrim's information. Only provided fields are updated.",
     responses={
@@ -195,7 +195,7 @@ def update_pilgrim(
 
     db.commit()
     db.refresh(user)
-    return PilgrimResponse.model_validate(user)
+    return success_response(data=PilgrimResponse.model_validate(user).model_dump(), message="Pilgrim updated successfully")
 
 
 @router.delete(

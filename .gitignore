@@ -1,3 +1,8 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
 # Python
 __pycache__/
 *.py[cod]
@@ -14,9 +19,6 @@ build/
 venv/
 ENV/
 
-# Environment variables
-.env
-
 # IDE
 .vscode/
 .idea/
@@ -29,13 +31,13 @@ ENV/
 Thumbs.db
 
 # Backend
-backend/alembic/versions/*.py
-!backend/alembic/versions/.gitkeep
+backend/audio_cache/
+backend/*.log
 
 # Node / Admin Portal
-node_modules/
-dist/
-.vite/
+admin-portal/node_modules/
+admin-portal/dist/
+admin-portal/.vite/
 
 # Flutter / Mobile
 mobile/.dart_tool/
@@ -44,6 +46,9 @@ mobile/build/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
 
-# Logs
-*.log
-npm-debug.log*
+# Docker
+docker-compose.override.yml
+
+# Test
+backend/test_all.py
+backend/check_*.py

@@ -19,6 +19,10 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+    WORKERS: int = 2
+
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
@@ -36,7 +40,7 @@ class Settings(BaseSettings):
             )
         return v
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 @lru_cache

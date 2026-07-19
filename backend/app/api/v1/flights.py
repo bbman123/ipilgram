@@ -9,6 +9,7 @@ from app.api.deps import require_role
 from app.models.user import User, Role
 from app.models.flight import Flight, FlightStatus
 from app.schemas.common import PaginationParams, SortingParams, paginate
+from app.schemas.response import success_response
 from app.schemas.flight import (
     FlightCreate,
     FlightResponse,
@@ -23,7 +24,6 @@ ALLOWED_SORT_FIELDS = ["id", "airline", "flight_number", "departure_datetime", "
 
 @router.get(
     "",
-    response_model=PaginatedFlights,
     summary="List all flights",
     description="Retrieve a paginated list of flights. Supports search, sorting, and filtering by status.",
     responses={
@@ -59,18 +59,20 @@ def list_flights(
     query = sorting.apply(query, Flight, ALLOWED_SORT_FIELDS)
     result = paginate(query, pagination)
 
-    return PaginatedFlights(
-        items=[FlightResponse.model_validate(f) for f in result["items"]],
-        total=result["total"],
-        page=result["page"],
-        size=result["size"],
-        pages=result["pages"],
+    return success_response(
+        data=PaginatedFlights(
+            items=[FlightResponse.model_validate(f) for f in result["items"]],
+            total=result["total"],
+            page=result["page"],
+            size=result["size"],
+            pages=result["pages"],
+        ).model_dump(),
+        message="Flights retrieved successfully",
     )
 
 
 @router.get(
     "/{flight_id}",
-    response_model=FlightResponse,
     summary="Get flight by ID",
     description="Retrieve a single flight record.",
     responses={
@@ -90,12 +92,11 @@ def get_flight(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flight not found"
         )
-    return FlightResponse.model_validate(flight)
+    return success_response(data=FlightResponse.model_validate(flight).model_dump(), message="Flight retrieved successfully")
 
 
 @router.post(
     "",
-    response_model=FlightResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new flight",
     description="Register a new flight record. Validates that arrival is after departure.",
@@ -121,12 +122,11 @@ def create_flight(
     db.add(flight)
     db.commit()
     db.refresh(flight)
-    return FlightResponse.model_validate(flight)
+    return success_response(data=FlightResponse.model_validate(flight).model_dump(), message="Flight created successfully")
 
 
 @router.put(
     "/{flight_id}",
-    response_model=FlightResponse,
     summary="Update flight details",
     description="Update an existing flight record. Only provided fields are modified.",
     responses={
@@ -164,7 +164,7 @@ def update_flight(
 
     db.commit()
     db.refresh(flight)
-    return FlightResponse.model_validate(flight)
+    return success_response(data=FlightResponse.model_validate(flight).model_dump(), message="Flight updated successfully")
 
 
 @router.delete(

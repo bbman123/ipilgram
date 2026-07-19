@@ -12,6 +12,7 @@ from app.models.package import Package
 from app.models.announcement import Announcement
 from app.models.notification import Notification
 from app.models.preference import Preference
+from app.schemas.response import success_response
 
 router = APIRouter(tags=["Dashboard"])
 
@@ -30,7 +31,6 @@ class DashboardStats(BaseModel):
 
 @router.get(
     "/stats",
-    response_model=DashboardStats,
     summary="Get dashboard statistics",
     description="Returns aggregate counts for all entities. Admin only.",
     responses={
@@ -53,14 +53,17 @@ def get_dashboard_stats(
     total_notifications = db.query(func.count(Notification.id)).scalar() or 0
     total_preferences = db.query(func.count(Preference.id)).scalar() or 0
 
-    return DashboardStats(
-        total_pilgrims=total_pilgrims,
-        total_packages=total_packages,
-        total_flights=total_flights,
-        total_accommodations=total_accommodations,
-        total_transports=total_transports,
-        total_announcements=total_announcements,
-        total_notifications=total_notifications,
-        total_preferences=total_preferences,
-        active_pilgrims=active_pilgrims,
+    return success_response(
+        data=DashboardStats(
+            total_pilgrims=total_pilgrims,
+            total_packages=total_packages,
+            total_flights=total_flights,
+            total_accommodations=total_accommodations,
+            total_transports=total_transports,
+            total_announcements=total_announcements,
+            total_notifications=total_notifications,
+            total_preferences=total_preferences,
+            active_pilgrims=active_pilgrims,
+        ).model_dump(),
+        message="Dashboard statistics retrieved successfully",
     )

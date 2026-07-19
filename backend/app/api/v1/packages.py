@@ -12,6 +12,7 @@ from app.models.flight import Flight
 from app.models.accommodation import Accommodation
 from app.models.transport import Transport
 from app.schemas.common import PaginationParams, SortingParams, paginate
+from app.schemas.response import success_response
 from app.schemas.package import (
     PackageCreate,
     PackageUpdate,
@@ -42,7 +43,6 @@ def _enrich_package(pkg: Package, pilgrim_counts: dict[int, int]) -> PackageResp
 
 @router.get(
     "",
-    response_model=PaginatedPackages,
     summary="List all packages",
     description="Retrieve a paginated list of Hajj packages. Supports search and sorting.",
     responses={
@@ -78,18 +78,20 @@ def list_packages(
         )
         counts = {row[0]: row[1] for row in rows}
 
-    return PaginatedPackages(
-        items=[_enrich_package(p, counts) for p in result["items"]],
-        total=result["total"],
-        page=result["page"],
-        size=result["size"],
-        pages=result["pages"],
+    return success_response(
+        data=PaginatedPackages(
+            items=[_enrich_package(p, counts) for p in result["items"]],
+            total=result["total"],
+            page=result["page"],
+            size=result["size"],
+            pages=result["pages"],
+        ).model_dump(),
+        message="Packages retrieved successfully",
     )
 
 
 @router.get(
     "/{package_id}",
-    response_model=PackageDetailResponse,
     summary="Get package by ID",
     description="Retrieve a single package with its associated flight, accommodation, and transport details.",
     responses={
@@ -115,22 +117,24 @@ def get_package(
     transport = db.query(Transport).filter(Transport.id == pkg.transport_id).first() if pkg.transport_id else None
     pilgrim_count = db.query(func.count(User.id)).filter(User.package_id == pkg.id, User.role == Role.pilgrim).scalar()
 
-    return PackageDetailResponse(
-        id=pkg.id,
-        name=pkg.name,
-        description=pkg.description,
-        flight=flight,
-        accommodation=accommodation,
-        transport=transport,
-        pilgrim_count=pilgrim_count,
-        created_at=pkg.created_at,
-        updated_at=pkg.updated_at,
+    return success_response(
+        data=PackageDetailResponse(
+            id=pkg.id,
+            name=pkg.name,
+            description=pkg.description,
+            flight=flight,
+            accommodation=accommodation,
+            transport=transport,
+            pilgrim_count=pilgrim_count,
+            created_at=pkg.created_at,
+            updated_at=pkg.updated_at,
+        ).model_dump(),
+        message="Package retrieved successfully",
     )
 
 
 @router.post(
     "",
-    response_model=PackageResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new package",
     description="Create a new Hajj package with optional flight, accommodation, and transport associations.",
@@ -160,12 +164,11 @@ def create_package(
     db.add(pkg)
     db.commit()
     db.refresh(pkg)
-    return PackageResponse.model_validate(pkg)
+    return success_response(data=PackageResponse.model_validate(pkg).model_dump(), message="Package created successfully")
 
 
 @router.put(
     "/{package_id}",
-    response_model=PackageResponse,
     summary="Update package details",
     description="Update an existing package. Only provided fields are modified.",
     responses={
@@ -206,16 +209,19 @@ def update_package(
     db.refresh(pkg)
 
     pilgrim_count = db.query(func.count(User.id)).filter(User.package_id == pkg.id, User.role == Role.pilgrim).scalar()
-    return PackageResponse(
-        id=pkg.id,
-        name=pkg.name,
-        description=pkg.description,
-        flight_id=pkg.flight_id,
-        accommodation_id=pkg.accommodation_id,
-        transport_id=pkg.transport_id,
-        pilgrim_count=pilgrim_count,
-        created_at=pkg.created_at,
-        updated_at=pkg.updated_at,
+    return success_response(
+        data=PackageResponse(
+            id=pkg.id,
+            name=pkg.name,
+            description=pkg.description,
+            flight_id=pkg.flight_id,
+            accommodation_id=pkg.accommodation_id,
+            transport_id=pkg.transport_id,
+            pilgrim_count=pilgrim_count,
+            created_at=pkg.created_at,
+            updated_at=pkg.updated_at,
+        ).model_dump(),
+        message="Package updated successfully",
     )
 
 
@@ -225,7 +231,6 @@ class AssignPackageResponse(PackageResponse):
 
 @router.post(
     "/{package_id}/assign/{pilgrim_id}",
-    response_model=PackageResponse,
     status_code=status.HTTP_200_OK,
     summary="Assign package to pilgrim",
     description="Assign a package to a pilgrim. The pilgrim inherits the associated flight, accommodation, and transport.",
@@ -254,22 +259,24 @@ def assign_package(
     db.commit()
 
     pilgrim_count = db.query(func.count(User.id)).filter(User.package_id == pkg.id, User.role == Role.pilgrim).scalar()
-    return PackageResponse(
-        id=pkg.id,
-        name=pkg.name,
-        description=pkg.description,
-        flight_id=pkg.flight_id,
-        accommodation_id=pkg.accommodation_id,
-        transport_id=pkg.transport_id,
-        pilgrim_count=pilgrim_count,
-        created_at=pkg.created_at,
-        updated_at=pkg.updated_at,
+    return success_response(
+        data=PackageResponse(
+            id=pkg.id,
+            name=pkg.name,
+            description=pkg.description,
+            flight_id=pkg.flight_id,
+            accommodation_id=pkg.accommodation_id,
+            transport_id=pkg.transport_id,
+            pilgrim_count=pilgrim_count,
+            created_at=pkg.created_at,
+            updated_at=pkg.updated_at,
+        ).model_dump(),
+        message="Package assigned successfully",
     )
 
 
 @router.get(
     "/{package_id}/pilgrims",
-    response_model=PaginatedPilgrims,
     summary="List pilgrims assigned to a package",
     description="Retrieve a paginated list of pilgrims assigned to a specific package. Supports search and pagination.",
     responses={
@@ -313,12 +320,15 @@ def list_package_pilgrims(
         resp.package_name = pkg.name
         items.append(resp)
 
-    return PaginatedPilgrims(
-        items=items,
-        total=result["total"],
-        page=result["page"],
-        size=result["size"],
-        pages=result["pages"],
+    return success_response(
+        data=PaginatedPilgrims(
+            items=items,
+            total=result["total"],
+            page=result["page"],
+            size=result["size"],
+            pages=result["pages"],
+        ).model_dump(),
+        message="Package pilgrims retrieved successfully",
     )
 
 

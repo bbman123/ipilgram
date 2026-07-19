@@ -5,7 +5,20 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-engine = create_engine(settings.DATABASE_URL, echo=settings.DEBUG)
+connect_args = {}
+if settings.DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+
+engine = create_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
+    connect_args=connect_args,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
