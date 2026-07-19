@@ -1,6 +1,6 @@
 import requests, json
 
-BASE = "http://127.0.0.1:8002/api/v1"
+BASE = "http://127.0.0.1:8001/api/v1"
 admin_token = None
 
 # 1. Login
@@ -18,14 +18,14 @@ r = requests.get(f"{BASE}/stats", headers=headers)
 print(f"3. Stats: {r.status_code} {r.json()}")
 
 # 4. OpenAPI
-r = requests.get("http://127.0.0.1:8002/openapi.json")
+r = requests.get("http://127.0.0.1:8001/openapi.json")
 spec = r.json()
 paths = sum(len(m) for p in spec["paths"].values() for m in [p])
 schemas = len(spec.get("components", {}).get("schemas", {}))
 print(f"4. OpenAPI: {paths} endpoints, {schemas} schemas")
 
 # 5. Docs
-r = requests.get("http://127.0.0.1:8002/docs")
+r = requests.get("http://127.0.0.1:8001/docs")
 print(f"5. Docs: {r.status_code}")
 
 # 6. Pilgrims with package filter
