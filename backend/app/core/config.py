@@ -1,3 +1,4 @@
+from typing import List
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from functools import lru_cache
@@ -17,7 +18,28 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     FIREBASE_CREDENTIALS_PATH: str = ""
 
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: List[str] = ["http://localhost:5173"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, value):
+        if isinstance(value, list):
+            return value
+
+        if isinstance(value, str):
+            value = value.strip()
+
+            if value == "*":
+                return ["*"]
+
+            # JSON array
+            if value.startswith("["):
+                return json.loads(value)
+
+            # comma separated
+            return [origin.strip() for origin in value.split(",")]
+
+        return value
 
     HOST: str = "0.0.0.0"
     PORT: int = 8000
