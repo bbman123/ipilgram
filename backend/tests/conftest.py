@@ -25,7 +25,7 @@ def admin_headers(client):
     if r.status_code != 200:
         pytest.skip(f"Admin login failed: {r.status_code} {r.json()}")
     body = r.json()
-    token = body.get("access_token") or body.get("data", {}).get("access_token")
+    token = body.get("access_token")
     if not token:
         pytest.skip(f"No access_token in response: {body}")
     return {"Authorization": f"Bearer {token}"}

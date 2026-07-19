@@ -351,7 +351,7 @@ An integration test script is available for testing the full API surface:
 python test_all.py
 ```
 
-This script logs in, exercises all major endpoints, and prints a summary. The server must be running at `http://127.0.0.1:8001` (edit the `BASE` variable in `test_all.py` if your port differs).
+This script logs in, exercises all major endpoints, and prints a summary. The server must be running at `http://127.0.0.1:8002` (edit the `BASE` variable in `test_all.py` if your port differs).
 
 ---
 

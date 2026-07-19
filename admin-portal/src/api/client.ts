@@ -31,7 +31,13 @@ function processQueue(error: unknown, token: string | null) {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const body = response.data;
+    if (body && typeof body === "object" && "success" in body && body.success && "data" in body) {
+      response.data = body.data;
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 

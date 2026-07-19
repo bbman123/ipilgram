@@ -38,9 +38,9 @@ class TestLogin:
         })
         assert r.status_code == 200
         body = r.json()
-        assert body["success"] is True
-        assert "access_token" in body["data"]
-        assert "refresh_token" in body["data"]
+        assert "access_token" in body
+        assert "refresh_token" in body
+        assert body["token_type"] == "bearer"
 
     def test_login_wrong_password(self, client):
         r = client.post("/api/v1/auth/login", json={
@@ -82,10 +82,10 @@ class TestRefresh:
             "password": "admin123",
         })
         assert login_r.status_code == 200
-        data = login_r.json()["data"]
+        data = login_r.json()
         refresh_token = data["refresh_token"]
         r = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
         assert r.status_code == 200
         body = r.json()
-        assert body["success"] is True
-        assert "access_token" in body["data"]
+        assert "access_token" in body
+        assert body["token_type"] == "bearer"

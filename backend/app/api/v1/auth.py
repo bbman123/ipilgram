@@ -62,6 +62,7 @@ def register(request: Request, body: UserRegister, db: Annotated[Session, Depend
 
 @router.post(
     "/login",
+    response_model=TokenResponse,
     summary="Authenticate and obtain tokens",
     description="Login with email and password to receive an access token and refresh token pair.",
     responses={
@@ -94,11 +95,12 @@ def login(request: Request, body: UserLogin, db: Annotated[Session, Depends(get_
     db.add(db_token)
     db.commit()
 
-    return success_response(data=TokenResponse(access_token=access_token, refresh_token=refresh_token).model_dump(), message="Login successful")
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post(
     "/refresh",
+    response_model=TokenResponse,
     summary="Refresh access token",
     description="Exchange a valid refresh token for a new access/refresh token pair. The old refresh token is revoked (rotation).",
     responses={
@@ -145,7 +147,7 @@ def refresh(body: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
     db.add(new_db_token)
     db.commit()
 
-    return success_response(data=TokenResponse(access_token=access_token, refresh_token=refresh_token).model_dump(), message="Token refreshed successfully")
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post(
