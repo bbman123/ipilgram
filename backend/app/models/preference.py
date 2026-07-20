@@ -9,17 +9,17 @@ from app.core.database import Base
 
 
 class PreferredLanguage(str, enum.Enum):
-    english = "English"
-    hausa = "Hausa"
-    yoruba = "Yoruba"
-    igbo = "Igbo"
-    arabic = "Arabic"
+    English = "English"
+    Hausa = "Hausa"
+    Yoruba = "Yoruba"
+    Igbo = "Igbo"
+    Arabic = "Arabic"
 
 
 class DeliveryMode(str, enum.Enum):
-    text = "Text"
-    audio = "Audio"
-    text_and_audio = "Text + Audio"
+    Text = "Text"
+    Audio = "Audio"
+    TextPlusAudio = "Text + Audio"
 
 
 class Preference(Base):
@@ -30,10 +30,12 @@ class Preference(Base):
         ForeignKey("users.id", ondelete="CASCADE"), unique=True
     )
     preferred_language: Mapped[PreferredLanguage] = mapped_column(
-        Enum(PreferredLanguage), default=PreferredLanguage.english
+        Enum("English", "Hausa", "Yoruba", "Igbo", "Arabic", name="preferredlanguage", create_type=False),
+        default=PreferredLanguage.English,
     )
     delivery_mode: Mapped[DeliveryMode] = mapped_column(
-        Enum(DeliveryMode), default=DeliveryMode.text
+        Enum("Text", "Audio", "Text + Audio", name="deliverymode", create_type=False),
+        default=DeliveryMode.Text,
     )
     font_size: Mapped[int] = mapped_column(Integer, default=16)
     notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True)

@@ -5,7 +5,7 @@ from app.models.preference import PreferredLanguage
 
 class TTSRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Text to convert to speech", examples=["Welcome to Hajj 2026"])
-    language: PreferredLanguage = Field(default=PreferredLanguage.english, description="Target language for speech synthesis")
+    language: PreferredLanguage = Field(default=PreferredLanguage.English, description="Target language for speech synthesis")
 
 
 class TTSResponse(BaseModel):

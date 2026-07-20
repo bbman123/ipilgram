@@ -8,12 +8,12 @@ from app.models.preference import PreferredLanguage, DeliveryMode
 class PreferenceCreate(BaseModel):
     pilgrim_id: int = Field(..., description="Pilgrim user ID to set preferences for", examples=[1])
     preferred_language: PreferredLanguage = Field(
-        default=PreferredLanguage.english,
+        default=PreferredLanguage.English,
         description="Preferred display and notification language",
         examples=["English"],
     )
     delivery_mode: DeliveryMode = Field(
-        default=DeliveryMode.text,
+        default=DeliveryMode.Text,
         description="Preferred content delivery format",
         examples=["Text + Audio"],
     )

@@ -155,7 +155,7 @@ def register_device(
         existing.platform = body.platform
         db.commit()
         db.refresh(existing)
-    return success_response(data=DeviceTokenResponse.model_validate(existing).model_dump(), message="Device token reactivated")
+        return success_response(data=DeviceTokenResponse.model_validate(existing).model_dump(), message="Device token reactivated")
 
     dt = DeviceToken(
         pilgrim_id=current_user.id,

@@ -6,7 +6,7 @@ from app.models.preference import PreferredLanguage
 class SimplifyRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Original Hajj announcement text", examples=["Check-in starts at 14:00 at Hilton Makkah"])
     language: PreferredLanguage = Field(
-        default=PreferredLanguage.english,
+        default=PreferredLanguage.English,
         description="Target language for simplification",
         examples=["English"],
     )
@@ -15,12 +15,12 @@ class SimplifyRequest(BaseModel):
 class TranslateRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Text to translate", examples=["Your flight departs at 8:00 AM"])
     target_language: PreferredLanguage = Field(..., description="Target language for translation", examples=["Hausa"])
-    source_language: PreferredLanguage = Field(default=PreferredLanguage.english, description="Source language", examples=["English"])
+    source_language: PreferredLanguage = Field(default=PreferredLanguage.English, description="Source language", examples=["English"])
 
 
 class ProcessRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Original Hajj announcement", examples=["Flight AP-201 departs at 08:00"])
-    target_language: PreferredLanguage = Field(default=PreferredLanguage.english, description="Target language for output", examples=["English"])
+    target_language: PreferredLanguage = Field(default=PreferredLanguage.English, description="Target language for output", examples=["English"])
     audio_required: bool = Field(default=False, description="Whether audio output is needed", examples=[False])
 
 
