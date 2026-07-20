@@ -48,6 +48,10 @@ async def lifespan(application: FastAPI):
         _scheduler.shutdown(wait=False)
         logger.info("Notification engine scheduler stopped")
 
+    from app.core.database import engine
+    engine.dispose()
+    logger.info("Database connections disposed")
+
 
 TAGS_METADATA = [
     {"name": "Health", "description": "Service health checks"},

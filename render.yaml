@@ -39,6 +39,10 @@ services:
         value: "0.0.0.0"
       - key: WORKERS
         value: "2"
+      - key: LOG_LEVEL
+        value: "info"
+      - key: APP_VERSION
+        value: "1.0.0"
     healthCheckPath: /api/v1/health
     autoDeploy: true
     disk:
