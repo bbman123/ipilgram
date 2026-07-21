@@ -146,6 +146,10 @@ def create_app() -> FastAPI:
             content={"success": False, "message": "Internal server error", "data": None, "errors": None},
         )
 
+    @application.get("/health", tags=["Health"])
+    async def root_health():
+        return {"status": "healthy"}
+
     application.include_router(api_router)
 
     return application
