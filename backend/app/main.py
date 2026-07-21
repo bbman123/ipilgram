@@ -19,6 +19,10 @@ from app.services.notification_engine import run_notification_engine
 
 settings = get_settings()
 
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 logger = logging.getLogger("hajj_api")
 
 _scheduler = None
@@ -93,11 +97,6 @@ def create_app() -> FastAPI:
 
     if settings.DEBUG:
         application.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
-    else:
-        application.add_middleware(
-            TrustedHostMiddleware,
-            allowed_hosts=["localhost", "127.0.0.1", ".onrender.com", ".railway.app", ".fly.dev"],
-        )
 
     allowed_origins = settings.cors_origins_list
     if settings.DEBUG and "localhost" not in str(allowed_origins):

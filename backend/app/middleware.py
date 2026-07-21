@@ -1,10 +1,13 @@
 import uuid
 import time
+import logging
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
+
+logger = logging.getLogger("hajj_api")
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
@@ -15,6 +18,15 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         start = time.perf_counter()
         response = await call_next(request)
         elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
+
+        logger.info(
+            "%s %s %s %s %sms",
+            request.client.host if request.client else "-",
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
+        )
 
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Response-Time"] = f"{elapsed_ms}ms"

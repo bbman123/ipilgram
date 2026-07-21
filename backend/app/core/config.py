@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     WORKERS: int = 2
+    LOG_LEVEL: str = "info"
 
     @field_validator("SECRET_KEY")
     @classmethod
