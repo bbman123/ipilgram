@@ -15,9 +15,12 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
+      console.log("[Login] Attempting login for:", email);
       await login(email, password);
+      console.log("[Login] Success, navigating to /");
       navigate("/");
-    } catch {
+    } catch (err: unknown) {
+      console.error("[Login] Failed:", err);
       setError("Invalid email or password");
     } finally {
       setLoading(false);

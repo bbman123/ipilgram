@@ -1,7 +1,11 @@
 import axios from "axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://ipilgram.onrender.com/api/v1";
+
+console.log("[API] Base URL:", API_BASE_URL);
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -67,7 +71,7 @@ apiClient.interceptors.response.use(
 
     try {
       const { data } = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
+        `${API_BASE_URL}/auth/refresh`,
         { refresh_token: refreshToken }
       );
 
