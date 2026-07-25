@@ -7,6 +7,9 @@ alembic upgrade head
 echo "Seeding admin user..."
 python seed.py
 
+echo "Seeding sample data..."
+python seed_data.py || true
+
 echo "Starting application..."
 exec gunicorn app.main:app \
   --workers "${WORKERS:-2}" \
