@@ -4,6 +4,9 @@ set -e
 echo "Running Alembic migrations..."
 alembic upgrade head
 
+echo "Seeding admin user..."
+python seed.py || echo "Seed skipped (admin may already exist)"
+
 echo "Starting application..."
 exec gunicorn app.main:app \
   --workers "${WORKERS:-2}" \
