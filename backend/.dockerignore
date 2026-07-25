@@ -15,7 +15,6 @@ audio_cache
 *.log
 test_all.py
 check_*.py
-seed.py
 docs/
 admin-portal/
 mobile/
