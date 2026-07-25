@@ -30,7 +30,7 @@ services:
       - key: DEBUG
         value: "False"
       - key: CORS_ORIGINS
-        value: '["https://your-admin-domain.onrender.com"]'
+        value: '["https://hajj-admin.onrender.com"]'
       - key: GEMINI_API_KEY
         sync: false
       - key: FIREBASE_CREDENTIALS_PATH
@@ -49,6 +49,22 @@ services:
       name: audio-cache
       mountPath: /app/audio_cache
       sizeGB: 1
+
+  - type: static_site
+    name: hajj-admin
+    plan: free
+    buildCommand: |
+      cd admin-portal
+      npm install
+      npm run build
+    publishPath: admin-portal/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: "https://ipilgram.onrender.com/api/v1"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
 
   - type: postgres
     name: hajj-pilgrims-db

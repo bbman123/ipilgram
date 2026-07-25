@@ -4,7 +4,6 @@ import {
   listNotifications,
   markNotificationRead,
   type Notification,
-  type NotificationType,
 } from "../api/notifications";
 
 const typeColors: Record<string, string> = {

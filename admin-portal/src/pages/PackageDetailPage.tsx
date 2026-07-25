@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { getPackage, deletePackage, getPackagePilgrims, type PackageDetail } from "../api/packages";
 import type { Pilgrim } from "../api/pilgrims";
 
