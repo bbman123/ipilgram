@@ -29,90 +29,90 @@ class _AudioCenterScreenState extends ConsumerState<AudioCenterScreen> {
       body: Column(
         children: [
           Expanded(
-            child: CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  expandedHeight: 160,
-                  pinned: true,
-                  flexibleSpace: FlexibleSpaceBar(
-                    title: const Text('Audio Center'),
-                    background: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.deepPurple.shade700,
-                            Colors.deepPurple.shade500,
-                            Colors.purple.shade300,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+            child: RefreshIndicator(
+              onRefresh: () => ref.read(audioCenterProvider.notifier).load(),
+              child: CustomScrollView(
+                slivers: [
+                  SliverAppBar(
+                    expandedHeight: 160,
+                    pinned: true,
+                    flexibleSpace: FlexibleSpaceBar(
+                      title: const Text('Audio Center'),
+                      background: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.deepPurple.shade700,
+                              Colors.deepPurple.shade500,
+                              Colors.purple.shade300,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                         ),
-                      ),
-                      child: Stack(
-                        children: [
-                          Positioned(
-                            right: -30,
-                            bottom: -30,
-                            child: Icon(Icons.headphones, size: 140, color: Colors.white.withValues(alpha: 0.08)),
-                          ),
-                          Center(
-                            child: Icon(Icons.headphones, size: 70, color: Colors.white.withValues(alpha: 0.12)),
-                          ),
-                        ],
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              right: -30,
+                              bottom: -30,
+                              child: Icon(Icons.headphones, size: 140, color: Colors.white.withValues(alpha: 0.08)),
+                            ),
+                            Center(
+                              child: Icon(Icons.headphones, size: 70, color: Colors.white.withValues(alpha: 0.12)),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                SliverPadding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isWide ? size.width * 0.15 : 12,
-                    vertical: 8,
-                  ),
-                  sliver: state.isLoading
-                      ? const SliverFillRemaining(
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      : state.error != null
-                          ? SliverFillRemaining(
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.error_outline, size: 56, color: theme.colorScheme.error),
-                                    const SizedBox(height: 12),
-                                    Text('Failed to load audio', style: theme.textTheme.titleMedium),
-                                    const SizedBox(height: 8),
-                                    FilledButton.icon(
-                                      onPressed: () => ref.read(audioCenterProvider.notifier).load(),
-                                      icon: const Icon(Icons.refresh),
-                                      label: const Text('Retry'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                          : state.audios.isEmpty
-                              ? SliverFillRemaining(
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.headset_off, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
-                                        const SizedBox(height: 12),
-                                        Text('No audio available', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Audio will appear when announcements have audio files',
-                                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ],
-                                    ),
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isWide ? size.width * 0.15 : 12,
+                      vertical: 8,
+                    ),
+                    sliver: state.isLoading
+                        ? const SliverFillRemaining(
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        : state.error != null
+                            ? SliverFillRemaining(
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.error_outline, size: 56, color: theme.colorScheme.error),
+                                      const SizedBox(height: 12),
+                                      Text('Failed to load audio', style: theme.textTheme.titleMedium),
+                                      const SizedBox(height: 8),
+                                      FilledButton.icon(
+                                        onPressed: () => ref.read(audioCenterProvider.notifier).load(),
+                                        icon: const Icon(Icons.refresh),
+                                        label: const Text('Retry'),
+                                      ),
+                                    ],
                                   ),
-                                )
-                              : RefreshIndicator(
-                                  onRefresh: () => ref.read(audioCenterProvider.notifier).load(),
-                                  child: SliverList.separated(
+                                ),
+                              )
+                            : state.audios.isEmpty
+                                ? SliverFillRemaining(
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.headset_off, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+                                          const SizedBox(height: 12),
+                                          Text('No audio available', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Audio will appear when announcements have audio files',
+                                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : SliverList.separated(
                                     itemCount: state.audios.length,
                                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                                     itemBuilder: (context, index) {
@@ -126,10 +126,10 @@ class _AudioCenterScreenState extends ConsumerState<AudioCenterScreen> {
                                       );
                                     },
                                   ),
-                                ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 160)),
-              ],
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 160)),
+                ],
+              ),
             ),
           ),
           if (state.currentlyPlaying != null)

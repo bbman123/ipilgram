@@ -26,7 +26,7 @@ def seed():
                 return
 
             now = datetime.now(timezone.utc)
-            hajj_date = datetime(2026, 6, 5, tzinfo=timezone.utc)
+            hajj_date = now + timedelta(days=30)
 
             print("SEED: Creating flights...")
             flights = [

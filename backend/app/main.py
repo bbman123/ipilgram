@@ -46,6 +46,20 @@ async def lifespan(application: FastAPI):
 
     run_notification_engine()
 
+    # Gemini AI startup health check
+    from app.services.ai.gemini import GeminiProvider, GeminiError
+    from app.core.config import get_settings
+    cfg = get_settings()
+    gemini_configured = bool(cfg.GEMINI_API_KEY)
+    if gemini_configured:
+        try:
+            provider = GeminiProvider(cfg.GEMINI_API_KEY)
+            logger.info("Gemini initialized: True (model=%s)", provider.MODEL)
+        except GeminiError as e:
+            logger.error("Gemini initialized: False (reason=%s)", e.details.get("reason", "unknown"))
+    else:
+        logger.warning("Gemini initialized: False (GEMINI_API_KEY not set)")
+
     yield
 
     if _scheduler:

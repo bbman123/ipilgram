@@ -26,117 +26,117 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
     final isWide = size.width > 600;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 160,
-            pinned: true,
-            actions: [
-              if (state.unreadCount > 0)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Text(
-                      '${state.unreadCount} unread',
-                      style: theme.textTheme.labelMedium?.copyWith(color: Colors.white70),
+      body: RefreshIndicator(
+        onRefresh: () => ref.read(notificationCenterProvider.notifier).load(),
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 160,
+              pinned: true,
+              actions: [
+                if (state.unreadCount > 0)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(
+                        '${state.unreadCount} unread',
+                        style: theme.textTheme.labelMedium?.copyWith(color: Colors.white70),
+                      ),
                     ),
                   ),
-                ),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text('Notifications'),
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.indigo.shade700,
-                      Colors.indigo.shade500,
-                      Colors.indigo.shade300,
+              ],
+              flexibleSpace: FlexibleSpaceBar(
+                title: const Text('Notifications'),
+                background: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.indigo.shade700,
+                        Colors.indigo.shade500,
+                        Colors.indigo.shade300,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        right: -30,
+                        bottom: -30,
+                        child: Icon(
+                          Icons.notifications,
+                          size: 140,
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      Center(
+                        child: Icon(
+                          Icons.notifications,
+                          size: 70,
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
                     ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
                   ),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      right: -30,
-                      bottom: -30,
-                      child: Icon(
-                        Icons.notifications,
-                        size: 140,
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                    Center(
-                      child: Icon(
-                        Icons.notifications,
-                        size: 70,
-                        color: Colors.white.withValues(alpha: 0.12),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ),
-          ),
-          SliverToBoxAdapter(
-            child: _CategoryTabs(
-              selected: state.selectedCategory,
-              unreadCounts: {
-                for (final cat in NotificationCategory.values)
-                  cat: state.unreadCountFor(cat),
-              },
-              onSelect: (cat) => ref.read(notificationCenterProvider.notifier).setCategory(cat),
+            SliverToBoxAdapter(
+              child: _CategoryTabs(
+                selected: state.selectedCategory,
+                unreadCounts: {
+                  for (final cat in NotificationCategory.values)
+                    cat: state.unreadCountFor(cat),
+                },
+                onSelect: (cat) => ref.read(notificationCenterProvider.notifier).setCategory(cat),
+              ),
             ),
-          ),
-          SliverPadding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isWide ? size.width * 0.15 : 12,
-              vertical: 8,
-            ),
-            sliver: state.isLoading
-                ? const SliverFillRemaining(
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                : state.error != null
-                    ? SliverFillRemaining(
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.error_outline, size: 56, color: theme.colorScheme.error),
-                              const SizedBox(height: 12),
-                              Text('Failed to load notifications', style: theme.textTheme.titleMedium),
-                              const SizedBox(height: 8),
-                              FilledButton.icon(
-                                onPressed: () => ref.read(notificationCenterProvider.notifier).load(),
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Retry'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : state.notifications.isEmpty
-                        ? SliverFillRemaining(
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.notifications_none, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'No notifications',
-                                    style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                                  ),
-                                ],
-                              ),
+            SliverPadding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isWide ? size.width * 0.15 : 12,
+                vertical: 8,
+              ),
+              sliver: state.isLoading
+                  ? const SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : state.error != null
+                      ? SliverFillRemaining(
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.error_outline, size: 56, color: theme.colorScheme.error),
+                                const SizedBox(height: 12),
+                                Text('Failed to load notifications', style: theme.textTheme.titleMedium),
+                                const SizedBox(height: 8),
+                                FilledButton.icon(
+                                  onPressed: () => ref.read(notificationCenterProvider.notifier).load(),
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Retry'),
+                                ),
+                              ],
                             ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: () => ref.read(notificationCenterProvider.notifier).load(),
-                            child: SliverList.separated(
+                          ),
+                        )
+                      : state.notifications.isEmpty
+                          ? SliverFillRemaining(
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.notifications_none, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'No notifications',
+                                      style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : SliverList.separated(
                               itemCount: state.notifications.length,
                               separatorBuilder: (_, __) => const SizedBox(height: 8),
                               itemBuilder: (context, index) {
@@ -147,10 +147,10 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
                                 );
                               },
                             ),
-                          ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
-        ],
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
+          ],
+        ),
       ),
     );
   }
@@ -229,10 +229,10 @@ class _CategoryTabs extends StatelessWidget {
                       ),
                       child: Text(
                         '$unread',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: isSelected ? Colors.white : Colors.white,
+                          color: Colors.white,
                         ),
                       ),
                     ),

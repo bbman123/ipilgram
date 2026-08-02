@@ -52,8 +52,10 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     final isWide = size.width > 600;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        onRefresh: () => ref.read(announcementProvider.notifier).load(),
+        child: CustomScrollView(
+          slivers: [
           SliverAppBar(
             expandedHeight: 160,
             pinned: true,
@@ -204,25 +206,23 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                               ),
                             ),
                           )
-                        : RefreshIndicator(
-                            onRefresh: () => ref.read(announcementProvider.notifier).load(),
-                            child: SliverList.separated(
-                              itemCount: state.announcements.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 8),
-                              itemBuilder: (context, index) {
-                                final a = state.announcements[index];
-                                final isRead = _readIds.contains(a.id);
-                                return _AnnouncementCard(
-                                  announcement: a,
-                                  isRead: isRead,
-                                  onTap: () => setState(() => _readIds.add(a.id)),
-                                );
-                              },
-                            ),
+                        : SliverList.separated(
+                            itemCount: state.announcements.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            itemBuilder: (context, index) {
+                              final a = state.announcements[index];
+                              final isRead = _readIds.contains(a.id);
+                              return _AnnouncementCard(
+                                announcement: a,
+                                isRead: isRead,
+                                onTap: () => setState(() => _readIds.add(a.id)),
+                              );
+                            },
                           ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -25,6 +25,7 @@ from app.schemas.announcement import (
     AVAILABLE_PLACEHOLDERS,
 )
 from app.services.template_engine import build_replacement_map, replace_placeholders
+from app.services.tts import generate_audio, AUDIO_CACHE_DIR
 
 logger = logging.getLogger("hajj_api")
 
@@ -255,6 +256,16 @@ def get_my_announcements(
     personalized = []
     for a in announcements:
         personalized_message = replace_placeholders(a.message_template, replacements)
+        lang = replacements.get("language", "English")
+        lang_code_map = {"English": "en", "Hausa": "ha", "Arabic": "ar", "Yoruba": "yo", "Igbo": "ig"}
+        lang_code = lang_code_map.get(lang, "en")
+
+        audio_url = None
+        try:
+            audio_url = generate_audio(personalized_message, lang_code)
+        except Exception as e:
+            logger.warning("TTS generation failed for announcement %d: %s", a.id, str(e))
+
         personalized.append(
             PersonalizedAnnouncement(
                 id=a.id,
@@ -263,7 +274,8 @@ def get_my_announcements(
                 priority=a.priority,
                 publish_date=a.publish_date,
                 expiry_date=a.expiry_date,
-                language=replacements.get("language", "English"),
+                language=lang,
+                audio_url=audio_url,
             )
         )
 

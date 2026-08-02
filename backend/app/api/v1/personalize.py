@@ -1,10 +1,11 @@
 import logging
-import os
+
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 
 from app.api.deps import require_role
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.schemas.response import success_response
@@ -20,7 +21,7 @@ from app.schemas.personalize import (
     AIQueryResponse,
     HealthCheckResponse,
 )
-from app.services.ai.gemini import GeminiProvider
+from app.services.ai.gemini import GeminiProvider, GeminiError
 from app.services.ai.engine import PersonalizationEngine
 from app.services.tts import generate_audio
 
@@ -30,14 +31,21 @@ router = APIRouter(prefix="/personalize", tags=["AI Personalization"])
 
 
 def _get_engine() -> PersonalizationEngine:
-    api_key = os.environ.get("GEMINI_API_KEY", "")
+    settings = get_settings()
+    api_key = settings.GEMINI_API_KEY
     if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="GEMINI_API_KEY not configured. AI personalization is unavailable.",
-        )
-    provider = GeminiProvider(api_key)
-    return PersonalizationEngine(provider)
+        return None
+    return PersonalizationEngine(GeminiProvider(api_key))
+
+
+def _ai_error_response(e: GeminiError):
+    """Map GeminiError to a JSON error response."""
+    return {
+        "success": False,
+        "message": e.message,
+        "data": None,
+        "errors": e.details,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -68,14 +76,24 @@ def ask_ai(
     db: Annotated[object, Depends(get_db)],
 ):
     engine = _get_engine()
+    if engine is None:
+        return _ai_error_response(GeminiError(
+            message="AI service is not configured. Please contact the administrator.",
+            status_code=503,
+            details={"reason": "not_configured"},
+        ))
     try:
         result = engine.answer_query(pilgrim.id, body.query, db)
+    except GeminiError as e:
+        logger.error("Gemini error on /ask: pilgrim=%d, reason=%s", pilgrim.id, e.details.get("reason", "unknown"))
+        return _ai_error_response(e)
     except Exception as e:
-        logger.error("AI ask error: pilgrim=%d: %s", pilgrim.id, str(e))
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI provider error. Please try again later.",
-        )
+        logger.error("Unexpected error on /ask: pilgrim=%d: %s", pilgrim.id, str(e))
+        return _ai_error_response(GeminiError(
+            message="An unexpected error occurred. Please try again later.",
+            status_code=500,
+            details={"reason": "internal_error", "error": str(e)[:200]},
+        ))
 
     return success_response(data=AIQueryResponse(**result).model_dump(), message="AI response generated")
 
@@ -103,14 +121,24 @@ def ask_ai_audio(
     db: Annotated[object, Depends(get_db)],
 ):
     engine = _get_engine()
+    if engine is None:
+        return _ai_error_response(GeminiError(
+            message="AI service is not configured. Please contact the administrator.",
+            status_code=503,
+            details={"reason": "not_configured"},
+        ))
     try:
         result = engine.answer_query(pilgrim.id, body.query, db)
+    except GeminiError as e:
+        logger.error("Gemini error on /ask/audio: pilgrim=%d, reason=%s", pilgrim.id, e.details.get("reason", "unknown"))
+        return _ai_error_response(e)
     except Exception as e:
-        logger.error("AI ask+audio error: pilgrim=%d: %s", pilgrim.id, str(e))
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI provider error. Please try again later.",
-        )
+        logger.error("Unexpected error on /ask/audio: pilgrim=%d: %s", pilgrim.id, str(e))
+        return _ai_error_response(GeminiError(
+            message="An unexpected error occurred. Please try again later.",
+            status_code=500,
+            details={"reason": "internal_error", "error": str(e)[:200]},
+        ))
 
     language = result.get("language", "English")
     tts_map = {"English": "en", "Hausa": "ha", "Arabic": "ar", "Yoruba": "yo", "Igbo": "ig"}
@@ -119,19 +147,21 @@ def ask_ai_audio(
     from app.services.tts import AUDIO_CACHE_DIR
     audio_url = generate_audio(result["response"], lang_code)
     if not audio_url:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="TTS generation failed. Audio unavailable.",
-        )
+        return _ai_error_response(GeminiError(
+            message="Audio generation failed. Please try again later.",
+            status_code=503,
+            details={"reason": "tts_failed"},
+        ))
 
     import hashlib
     key = hashlib.sha256(f"{result['response']}:{lang_code}".encode()).hexdigest()
     filepath = AUDIO_CACHE_DIR / f"{key}.mp3"
     if not filepath.exists():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="TTS generation failed. Audio file not found.",
-        )
+        return _ai_error_response(GeminiError(
+            message="Audio file could not be created.",
+            status_code=503,
+            details={"reason": "tts_file_missing"},
+        ))
 
     from fastapi.responses import FileResponse
     return FileResponse(str(filepath), media_type="audio/mpeg", filename="response.mp3")
@@ -158,21 +188,31 @@ def simplify_announcement(
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
     engine = _get_engine()
+    if engine is None:
+        return _ai_error_response(GeminiError(
+            message="AI service is not configured. Please contact the administrator.",
+            status_code=503,
+            details={"reason": "not_configured"},
+        ))
     try:
         result = engine.simplify(body.text, body.language.value)
+    except GeminiError as e:
+        logger.error("Gemini error on /simplify: %s", e.details.get("reason", "unknown"))
+        return _ai_error_response(e)
     except Exception as e:
-        logger.error("AI simplify error: %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI provider error. Please try again later.",
-        )
+        logger.error("Unexpected error on /simplify: %s", str(e))
+        return _ai_error_response(GeminiError(
+            message="An unexpected error occurred. Please try again later.",
+            status_code=500,
+            details={"reason": "internal_error", "error": str(e)[:200]},
+        ))
 
     return success_response(
         data=SimplifyResponse(
             original=body.text,
             simplified=result["response"],
             language=body.language.value,
-            model_used="",
+            model_used="gemini-2.0-flash",
         ).model_dump(),
         message="Text simplified successfully",
     )
@@ -195,18 +235,28 @@ def translate_announcement(
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
     engine = _get_engine()
+    if engine is None:
+        return _ai_error_response(GeminiError(
+            message="AI service is not configured. Please contact the administrator.",
+            status_code=503,
+            details={"reason": "not_configured"},
+        ))
     try:
         result = engine.translate(
             body.text,
             body.target_language.value,
             body.source_language.value,
         )
+    except GeminiError as e:
+        logger.error("Gemini error on /translate: %s", e.details.get("reason", "unknown"))
+        return _ai_error_response(e)
     except Exception as e:
-        logger.error("AI translate error: %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI provider error. Please try again later.",
-        )
+        logger.error("Unexpected error on /translate: %s", str(e))
+        return _ai_error_response(GeminiError(
+            message="An unexpected error occurred. Please try again later.",
+            status_code=500,
+            details={"reason": "internal_error", "error": str(e)[:200]},
+        ))
 
     return success_response(
         data=TranslateResponse(
@@ -214,7 +264,7 @@ def translate_announcement(
             translated=result["response"],
             source_language=body.source_language.value,
             target_language=body.target_language.value,
-            model_used="",
+            model_used="gemini-2.0-flash",
         ).model_dump(),
         message="Text translated successfully",
     )
@@ -237,18 +287,28 @@ def process_announcement(
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
     engine = _get_engine()
+    if engine is None:
+        return _ai_error_response(GeminiError(
+            message="AI service is not configured. Please contact the administrator.",
+            status_code=503,
+            details={"reason": "not_configured"},
+        ))
     try:
         result = engine.process(
             body.text,
             body.target_language.value,
             body.audio_required,
         )
+    except GeminiError as e:
+        logger.error("Gemini error on /process: %s", e.details.get("reason", "unknown"))
+        return _ai_error_response(e)
     except Exception as e:
-        logger.error("AI process error: %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI provider error. Please try again later.",
-        )
+        logger.error("Unexpected error on /process: %s", str(e))
+        return _ai_error_response(GeminiError(
+            message="An unexpected error occurred. Please try again later.",
+            status_code=500,
+            details={"reason": "internal_error", "error": str(e)[:200]},
+        ))
 
     return success_response(data=ProcessResponse(**result).model_dump(), message="Announcement processed successfully")
 
@@ -266,7 +326,8 @@ def process_announcement(
 def ai_health(
     _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
-    api_key = os.environ.get("GEMINI_API_KEY", "")
+    settings = get_settings()
+    api_key = settings.GEMINI_API_KEY
     return success_response(
         data=HealthCheckResponse(
             provider="gemini",
