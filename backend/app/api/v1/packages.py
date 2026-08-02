@@ -5,7 +5,7 @@ from sqlalchemy import or_, func
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
-from app.api.deps import require_role
+from app.api.deps import require_role, get_current_user
 from app.models.user import User, Role
 from app.models.package import Package
 from app.models.flight import Flight
@@ -25,6 +25,53 @@ from app.schemas.pilgrim import PilgrimResponse, PaginatedPilgrims
 router = APIRouter(prefix="/packages", tags=["Packages"])
 
 ALLOWED_SORT_FIELDS = ["id", "name", "created_at"]
+
+
+@router.get(
+    "/my",
+    summary="Get my assigned package",
+    description="Pilgrim endpoint. Returns the package assigned to the authenticated pilgrim with full flight, accommodation, and transport details.",
+    responses={
+        200: {"description": "Package details for the pilgrim"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Pilgrim role required"},
+        404: {"description": "No package assigned"},
+    },
+)
+def get_my_package(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role(Role.pilgrim))],
+):
+    if not current_user.package_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No package assigned"
+        )
+
+    pkg = db.query(Package).filter(Package.id == current_user.package_id).first()
+    if not pkg:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Package not found"
+        )
+
+    flight = db.query(Flight).filter(Flight.id == pkg.flight_id).first() if pkg.flight_id else None
+    accommodation = db.query(Accommodation).filter(Accommodation.id == pkg.accommodation_id).first() if pkg.accommodation_id else None
+    transport = db.query(Transport).filter(Transport.id == pkg.transport_id).first() if pkg.transport_id else None
+    pilgrim_count = db.query(func.count(User.id)).filter(User.package_id == pkg.id, User.role == Role.pilgrim).scalar()
+
+    return success_response(
+        data=PackageDetailResponse(
+            id=pkg.id,
+            name=pkg.name,
+            description=pkg.description,
+            flight=flight,
+            accommodation=accommodation,
+            transport=transport,
+            pilgrim_count=pilgrim_count,
+            created_at=pkg.created_at,
+            updated_at=pkg.updated_at,
+        ).model_dump(),
+        message="Package retrieved successfully",
+    )
 
 
 def _enrich_package(pkg: Package, pilgrim_counts: dict[int, int]) -> PackageResponse:

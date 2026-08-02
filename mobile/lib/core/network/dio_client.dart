@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/constants.dart';
-import '../errors/app_exception.dart';
 import 'package:logger/logger.dart';
 
 final logger = Logger();

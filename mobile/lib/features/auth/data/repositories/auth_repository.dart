@@ -48,6 +48,7 @@ class AuthRepository {
         data: {'refresh_token': refreshToken},
       );
     } on DioException {
+      // Logout failure is non-critical; tokens will be cleared regardless
     } finally {
       _dioClient.clearTokens();
       await _dioClient.clearPersistedTokens();
