@@ -10,7 +10,9 @@ import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/flight/presentation/screens/my_flight_screen.dart';
 import '../../features/notification_center/presentation/screens/notification_center_screen.dart';
 import '../../features/package/presentation/screens/my_package_screen.dart';
+import '../../features/settings/presentation/screens/privacy_policy_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/settings/presentation/screens/terms_of_service_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/transport/presentation/screens/my_transport_screen.dart';
 
@@ -37,6 +39,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/ai-chat', builder: (context, state) => const AiChatScreen()),
       GoRoute(path: '/audio', builder: (context, state) => const AudioCenterScreen()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
+      GoRoute(path: '/privacy', builder: (context, state) => const PrivacyPolicyScreen()),
+      GoRoute(path: '/terms', builder: (context, state) => const TermsOfServiceScreen()),
     ],
     redirect: (context, state) {
       final status = refreshNotifier.status;

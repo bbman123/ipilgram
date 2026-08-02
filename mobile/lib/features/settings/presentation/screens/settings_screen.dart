@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 
@@ -94,12 +94,12 @@ class SettingsScreen extends ConsumerWidget {
                 _TapTile(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacy Policy',
-                  onTap: () => _launchUrl(context, 'https://ipilgram.onrender.com/privacy'),
+                  onTap: () => context.push('/privacy'),
                 ),
                 _TapTile(
                   icon: Icons.description_outlined,
                   title: 'Terms of Service',
-                  onTap: () => _launchUrl(context, 'https://ipilgram.onrender.com/terms'),
+                  onTap: () => context.push('/terms'),
                 ),
                 const SizedBox(height: 24),
                 Padding(
@@ -136,17 +136,6 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  Future<void> _launchUrl(BuildContext context, String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open $url')),
-      );
-    }
   }
 }
 

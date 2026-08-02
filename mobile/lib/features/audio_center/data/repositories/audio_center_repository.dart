@@ -45,7 +45,11 @@ class AudioCenterRepository {
     final data = response.data;
     final List items = data is Map<String, dynamic> && data.containsKey('data')
         ? data['data'] as List
-        : data as List;
+        : data is List
+            ? data
+            : <dynamic>[];
+
+    if (items.isEmpty) return [];
 
     final dir = await getApplicationDocumentsDirectory();
     final audioDir = Directory('${dir.path}/audio');
@@ -54,7 +58,7 @@ class AudioCenterRepository {
     }
 
     return items
-        .where((e) => e['audio_url'] != null && (e['audio_url'] as String).isNotEmpty)
+        .where((e) => e is Map && e['audio_url'] != null && (e['audio_url'] as String).isNotEmpty)
         .map((e) {
       final audioUrl = e['audio_url'] as String;
       final filename = audioUrl.split('/').last;
@@ -66,7 +70,7 @@ class AudioCenterRepository {
         audioUrl: audioUrl.startsWith('http') ? audioUrl : '${ApiConstants.baseUrl}$audioUrl',
         localPath: localFile.existsSync() ? localFile.path : null,
         isDownloaded: localFile.existsSync(),
-        createdAt: e['publish_date'] != null ? DateTime.tryParse(e['publish_date']) : null,
+        createdAt: e['publish_date'] != null ? DateTime.tryParse(e['publish_date'] as String) : null,
       );
     }).toList();
   }

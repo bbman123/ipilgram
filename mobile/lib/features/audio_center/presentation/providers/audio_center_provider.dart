@@ -104,9 +104,13 @@ class AudioCenterNotifier extends StateNotifier<AudioCenterState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final items = await _repo.getAnnouncementAudios();
-      state = state.copyWith(isLoading: false, allAudios: items);
+      state = state.copyWith(isLoading: false, allAudios: items, error: null);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        allAudios: [],
+        error: null,
+      );
     }
   }
 

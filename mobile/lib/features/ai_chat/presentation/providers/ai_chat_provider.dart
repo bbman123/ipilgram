@@ -76,9 +76,18 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         isLoading: false,
       );
     } catch (e) {
+      final errorMsg = e.toString().replaceFirst('Exception: ', '');
+      String friendlyMessage;
+      if (errorMsg.contains('502') || errorMsg.contains('500') || errorMsg.contains('AI provider')) {
+        friendlyMessage = 'AI Assistant is temporarily unavailable. Please try again later.';
+      } else if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
+        friendlyMessage = 'Connection error. Please check your internet and try again.';
+      } else {
+        friendlyMessage = 'Failed to get response. Please try again.';
+      }
       state = state.copyWith(
         isLoading: false,
-        error: 'Failed to get response. Please try again.',
+        error: friendlyMessage,
       );
     }
   }
@@ -113,9 +122,18 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         isLoading: false,
       );
     } catch (e) {
+      final errorMsg = e.toString().replaceFirst('Exception: ', '');
+      String friendlyMessage;
+      if (errorMsg.contains('502') || errorMsg.contains('500') || errorMsg.contains('AI provider')) {
+        friendlyMessage = 'AI Assistant is temporarily unavailable. Please try again later.';
+      } else if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
+        friendlyMessage = 'Connection error. Please check your internet and try again.';
+      } else {
+        friendlyMessage = 'Failed to generate audio. Please try again.';
+      }
       state = state.copyWith(
         isLoading: false,
-        error: 'Failed to generate audio. Please try again.',
+        error: friendlyMessage,
       );
     }
   }
