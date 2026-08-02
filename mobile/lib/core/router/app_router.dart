@@ -15,10 +15,11 @@ import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/transport/presentation/screens/my_transport_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final refreshNotifier = ref.watch(authRefreshProvider);
 
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: refreshNotifier,
     routes: [
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
@@ -34,13 +35,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
     ],
     redirect: (context, state) {
-      final status = authState.status;
+      // Read auth status directly from the ChangeNotifier (no stale closure)
+      final status = refreshNotifier.status;
       final location = state.matchedLocation;
-      if (status == AuthStatus.initial) return location == '/' ? null : '/';
+
+      // Still initializing — stay on splash
+      if (status == AuthStatus.initial) {
+        return location == '/' ? null : '/';
+      }
+
       final isAuth = status == AuthStatus.authenticated;
       final isLoginRoute = location == '/login';
+
+      // Not authenticated → force to login
       if (!isAuth && !isLoginRoute) return '/login';
+
+      // Authenticated but on login → push to dashboard
       if (isAuth && isLoginRoute) return '/dashboard';
+
       return null;
     },
   );

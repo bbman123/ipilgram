@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/constants/constants.dart';
@@ -31,11 +32,26 @@ class AuthState {
   }
 }
 
+class AuthRefreshNotifier extends ChangeNotifier {
+  AuthStatus _status = AuthStatus.initial;
+
+  AuthStatus get status => _status;
+
+  void update(AuthStatus newStatus) {
+    if (_status != newStatus) {
+      _status = newStatus;
+      notifyListeners();
+    }
+  }
+}
+
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
   final DioClient _dioClient;
+  final AuthRefreshNotifier _refreshNotifier;
 
-  AuthNotifier(this._repository, this._dioClient) : super(const AuthState()) {
+  AuthNotifier(this._repository, this._dioClient, this._refreshNotifier)
+      : super(const AuthState()) {
     _init();
   }
 
@@ -54,10 +70,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } else {
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
+    _refreshNotifier.update(state.status);
   }
 
   Future<void> login(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading, error: null);
+    _refreshNotifier.update(AuthStatus.loading);
     try {
       await _repository.login(email, password);
       final user = await _repository.getMe();
@@ -67,12 +85,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final message = e.toString().replaceFirst('Exception: ', '');
       state = AuthState(status: AuthStatus.error, error: message);
     }
+    _refreshNotifier.update(state.status);
   }
 
   Future<void> logout() async {
     await _repository.logout();
     await _clearUserPrefs();
     state = const AuthState(status: AuthStatus.unauthenticated);
+    _refreshNotifier.update(AuthStatus.unauthenticated);
   }
 
   Future<void> _saveUserPrefs(User user) async {
@@ -92,6 +112,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
+final authRefreshProvider = Provider<AuthRefreshNotifier>((ref) {
+  return AuthRefreshNotifier();
+});
+
 final dioClientProvider = Provider<DioClient>((ref) {
   return DioClient();
 });
@@ -104,5 +128,6 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   final dioClient = ref.watch(dioClientProvider);
-  return AuthNotifier(repository, dioClient);
+  final refreshNotifier = ref.watch(authRefreshProvider);
+  return AuthNotifier(repository, dioClient, refreshNotifier);
 });
