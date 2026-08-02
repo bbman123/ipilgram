@@ -401,42 +401,27 @@ class _NotificationTile extends StatelessWidget {
   }
 
   String _typeLabel(String type) {
-    switch (type) {
-      case 'flight':
-        return 'Flight';
-      case 'accommodation':
-        return 'Hotel';
-      case 'transport':
-        return 'Transport';
-      default:
-        return 'General';
-    }
+    if (type.contains('flight')) return 'Flight';
+    if (type.contains('accommodation') || type.contains('hotel')) return 'Hotel';
+    if (type.contains('transport') || type.contains('bus')) return 'Transport';
+    if (type.contains('announcement')) return 'Announcement';
+    return 'General';
   }
 
   Color _typeColor(String type) {
-    switch (type) {
-      case 'flight':
-        return Colors.blue;
-      case 'accommodation':
-        return Colors.teal;
-      case 'transport':
-        return Colors.purple;
-      default:
-        return Colors.orange;
-    }
+    if (type.contains('flight')) return Colors.blue;
+    if (type.contains('accommodation') || type.contains('hotel')) return Colors.teal;
+    if (type.contains('transport') || type.contains('bus')) return Colors.purple;
+    if (type.contains('announcement')) return Colors.orange;
+    return Colors.orange;
   }
 
   IconData _typeIcon(String type) {
-    switch (type) {
-      case 'flight':
-        return Icons.flight;
-      case 'accommodation':
-        return Icons.hotel;
-      case 'transport':
-        return Icons.directions_bus;
-      default:
-        return Icons.notifications;
-    }
+    if (type.contains('flight')) return Icons.flight;
+    if (type.contains('accommodation') || type.contains('hotel')) return Icons.hotel;
+    if (type.contains('transport') || type.contains('bus')) return Icons.directions_bus;
+    if (type.contains('announcement')) return Icons.campaign;
+    return Icons.notifications;
   }
 
   String _formatTime(DateTime? date) {

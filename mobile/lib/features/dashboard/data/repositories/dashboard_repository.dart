@@ -8,61 +8,69 @@ class DashboardRepository {
 
   DashboardRepository(this._dio);
 
-  Future<List<Flight>> getFlights() async {
+  Future<DashboardData> getDashboardData() async {
     try {
-      final response = await _dio.get(ApiConstants.flightsEndpoint);
-      final body = response.data as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>;
-      final items = data['items'] as List;
-      return items.map((e) => Flight.fromJson(e as Map<String, dynamic>)).toList();
-    } on DioException catch (e) {
-      throw AppException.fromDioError(e);
-    }
-  }
+      final results = await Future.wait([
+        _dio.get(ApiConstants.myPackageEndpoint),
+        _dio.get(ApiConstants.myNotificationsEndpoint),
+        _dio.get(ApiConstants.myAnnouncementsEndpoint),
+      ]);
 
-  Future<List<Accommodation>> getAccommodations() async {
-    try {
-      final response = await _dio.get(ApiConstants.accommodationsEndpoint);
-      final body = response.data as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>;
-      final items = data['items'] as List;
-      return items.map((e) => Accommodation.fromJson(e as Map<String, dynamic>)).toList();
-    } on DioException catch (e) {
-      throw AppException.fromDioError(e);
-    }
-  }
+      final packageBody = results[0].data as Map<String, dynamic>;
+      final packageData = packageBody['data'] as Map<String, dynamic>;
 
-  Future<List<Transport>> getTransports() async {
-    try {
-      final response = await _dio.get(ApiConstants.transportsEndpoint);
-      final body = response.data as Map<String, dynamic>;
-      final data = body['data'] as Map<String, dynamic>;
-      final items = data['items'] as List;
-      return items.map((e) => Transport.fromJson(e as Map<String, dynamic>)).toList();
-    } on DioException catch (e) {
-      throw AppException.fromDioError(e);
-    }
-  }
+      Flight? flight;
+      if (packageData['flight'] != null) {
+        flight = Flight.fromJson(packageData['flight'] as Map<String, dynamic>);
+      }
 
-  Future<List<AppNotification>> getMyNotifications() async {
-    try {
-      final response = await _dio.get(ApiConstants.myNotificationsEndpoint);
-      final body = response.data as Map<String, dynamic>;
-      final data = body['data'] as List;
-      return data.map((e) => AppNotification.fromJson(e as Map<String, dynamic>)).toList();
-    } on DioException catch (e) {
-      throw AppException.fromDioError(e);
-    }
-  }
+      Accommodation? accommodation;
+      if (packageData['accommodation'] != null) {
+        accommodation = Accommodation.fromJson(packageData['accommodation'] as Map<String, dynamic>);
+      }
 
-  Future<List<Announcement>> getMyAnnouncements() async {
-    try {
-      final response = await _dio.get(ApiConstants.myAnnouncementsEndpoint);
-      final body = response.data as Map<String, dynamic>;
-      final data = body['data'] as List;
-      return data.map((e) => Announcement.fromJson(e as Map<String, dynamic>)).toList();
+      Transport? transport;
+      if (packageData['transport'] != null) {
+        transport = Transport.fromJson(packageData['transport'] as Map<String, dynamic>);
+      }
+
+      final notifBody = results[1].data as Map<String, dynamic>;
+      final notifData = notifBody['data'] as List;
+      final notifications = notifData
+          .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      final annBody = results[2].data as Map<String, dynamic>;
+      final annData = annBody['data'] as List;
+      final announcements = annData
+          .map((e) => Announcement.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      return DashboardData(
+        flight: flight,
+        accommodation: accommodation,
+        transport: transport,
+        notifications: notifications,
+        announcements: announcements,
+      );
     } on DioException catch (e) {
       throw AppException.fromDioError(e);
     }
   }
+}
+
+class DashboardData {
+  final Flight? flight;
+  final Accommodation? accommodation;
+  final Transport? transport;
+  final List<AppNotification> notifications;
+  final List<Announcement> announcements;
+
+  const DashboardData({
+    this.flight,
+    this.accommodation,
+    this.transport,
+    this.notifications = const [],
+    this.announcements = const [],
+  });
 }

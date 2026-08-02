@@ -61,41 +61,31 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
   Future<void> loadDashboard() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final results = await Future.wait([
-        _repository.getFlights(),
-        _repository.getAccommodations(),
-        _repository.getTransports(),
-        _repository.getMyNotifications(),
-        _repository.getMyAnnouncements(),
-      ]);
-
-      final flights = results[0] as List<Flight>;
-      final accommodations = results[1] as List<Accommodation>;
-      final transports = results[2] as List<Transport>;
-      final notifications = results[3] as List<AppNotification>;
-      final announcements = results[4] as List<Announcement>;
+      final data = await _repository.getDashboardData();
 
       final now = DateTime.now().toUtc();
-      final upcomingFlights = flights
-          .where((f) => f.departureDatetime.isAfter(now))
-          .toList()
-        ..sort((a, b) => a.departureDatetime.compareTo(b.departureDatetime));
 
-      final unreadNotifs = notifications.where((n) => n.readAt == null).length;
-      final activeAnnouncements = announcements.where((a) {
+      final upcomingFlights = <Flight>[];
+      if (data.flight != null && data.flight!.departureDatetime.isAfter(now)) {
+        upcomingFlights.add(data.flight!);
+        upcomingFlights.sort((a, b) => a.departureDatetime.compareTo(b.departureDatetime));
+      }
+
+      final unreadNotifs = data.notifications.where((n) => n.readAt == null).length;
+      final activeAnnouncements = data.announcements.where((a) {
         if (a.expiryDate == null) return true;
         return a.expiryDate!.isAfter(now);
       }).length;
 
       state = DashboardState(
         isLoading: false,
-        nextFlight: upcomingFlights.isNotEmpty ? upcomingFlights.first : null,
-        accommodation: accommodations.isNotEmpty ? accommodations.first : null,
-        transport: transports.isNotEmpty ? transports.first : null,
+        nextFlight: upcomingFlights.isNotEmpty ? upcomingFlights.first : data.flight,
+        accommodation: data.accommodation,
+        transport: data.transport,
         unreadNotifications: unreadNotifs,
         unreadAnnouncements: activeAnnouncements,
-        recentNotifications: notifications.take(5).toList(),
-        recentAnnouncements: announcements.take(5).toList(),
+        recentNotifications: data.notifications.take(5).toList(),
+        recentAnnouncements: data.announcements.take(5).toList(),
       );
     } catch (e) {
       state = state.copyWith(

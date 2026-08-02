@@ -17,6 +17,10 @@ import '../../features/transport/presentation/screens/my_transport_screen.dart';
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ref.watch(authRefreshProvider);
 
+  // Eagerly create AuthNotifier so _init() runs and calls _refreshNotifier.update().
+  // ref.listen (not ref.watch) ensures GoRouter is NOT recreated on auth state changes.
+  ref.listen<AuthState>(authProvider, (_, __) {});
+
   return GoRouter(
     initialLocation: '/',
     refreshListenable: refreshNotifier,
@@ -35,7 +39,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
     ],
     redirect: (context, state) {
-      // Read auth status directly from the ChangeNotifier (no stale closure)
       final status = refreshNotifier.status;
       final location = state.matchedLocation;
 
@@ -46,12 +49,13 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isAuth = status == AuthStatus.authenticated;
       final isLoginRoute = location == '/login';
+      final isSplash = location == '/';
 
       // Not authenticated → force to login
       if (!isAuth && !isLoginRoute) return '/login';
 
-      // Authenticated but on login → push to dashboard
-      if (isAuth && isLoginRoute) return '/dashboard';
+      // Authenticated but on login or splash → push to dashboard
+      if (isAuth && (isLoginRoute || isSplash)) return '/dashboard';
 
       return null;
     },

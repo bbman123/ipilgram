@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../../accommodation/presentation/providers/accommodation_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../flight/presentation/providers/flight_provider.dart';
-import '../../../notification_center/presentation/providers/notification_center_provider.dart';
 import '../../../transport/presentation/providers/transport_provider.dart';
 import '../providers/dashboard_provider.dart';
 
@@ -224,20 +223,20 @@ class _WelcomeHeader extends StatelessWidget {
   }
 }
 
-class _InfoCardsRow extends ConsumerWidget {
+class _InfoCardsRow extends StatelessWidget {
   final DashboardState dashState;
 
   const _InfoCardsRow({required this.dashState});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
           child: _InfoCard(
             icon: Icons.notifications_active_outlined,
             label: 'Notifications',
-            count: ref.watch(unreadCountProvider),
+            count: dashState.unreadNotifications,
             color: Colors.orange,
             onTap: () => context.push('/notifications'),
           ),
@@ -698,7 +697,7 @@ class _ActionTile extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -809,18 +808,11 @@ class _RecentNotifications extends StatelessWidget {
   }
 
   IconData _notifIcon(String type) {
-    switch (type) {
-      case 'flight':
-        return Icons.flight_outlined;
-      case 'accommodation':
-        return Icons.hotel_outlined;
-      case 'transport':
-        return Icons.directions_bus_outlined;
-      case 'package':
-        return Icons.inventory_2_outlined;
-      default:
-        return Icons.notifications_outlined;
-    }
+    if (type.contains('flight')) return Icons.flight_outlined;
+    if (type.contains('accommodation') || type.contains('hotel')) return Icons.hotel_outlined;
+    if (type.contains('transport') || type.contains('bus')) return Icons.directions_bus_outlined;
+    if (type.contains('announcement')) return Icons.campaign_outlined;
+    return Icons.notifications_outlined;
   }
 }
 

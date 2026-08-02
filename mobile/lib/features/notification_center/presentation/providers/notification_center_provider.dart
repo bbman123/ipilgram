@@ -41,14 +41,28 @@ class NotificationCenterState {
     if (selectedCategory == NotificationCategory.all) {
       return allNotifications;
     }
-    return allNotifications.where((n) => n.notificationType == selectedCategory.name).toList();
+    return allNotifications.where((n) {
+      final type = n.notificationType.toLowerCase();
+      switch (selectedCategory) {
+        case NotificationCategory.flight:
+          return type.contains('flight');
+        case NotificationCategory.accommodation:
+          return type.contains('accommodation') || type.contains('hotel');
+        case NotificationCategory.transport:
+          return type.contains('transport') || type.contains('bus');
+        case NotificationCategory.general:
+          return !type.contains('flight') && !type.contains('accommodation') && !type.contains('hotel') && !type.contains('transport') && !type.contains('bus');
+        case NotificationCategory.all:
+          return true;
+      }
+    }).toList();
   }
 
   int get unreadCount => allNotifications.where((n) => n.readAt == null).length;
 
   int unreadCountFor(NotificationCategory cat) {
     if (cat == NotificationCategory.all) return unreadCount;
-    return allNotifications.where((n) => n.notificationType == cat.name && n.readAt == null).length;
+    return notifications.where((n) => n.readAt == null).length;
   }
 }
 
