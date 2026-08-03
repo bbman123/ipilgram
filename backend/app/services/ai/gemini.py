@@ -24,12 +24,12 @@ class GeminiProvider(AIProvider):
     Uses the REST API directly via httpx — no SDK dependency.
     Set GEMINI_API_KEY in .env to authenticate.
 
-    Model: gemini-2.0-flash (stable, free-tier eligible).
+    Model: gemini-3.5-flash (stable, free-tier eligible).
     Docs: https://ai.google.dev/gemini-api/docs/models/gemini-v2
     """
 
     BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-    MODEL = "gemini-2.5-flash"
+    MODEL = "gemini-3.5-flash"
 
     def __init__(self, api_key: str):
         if not api_key:

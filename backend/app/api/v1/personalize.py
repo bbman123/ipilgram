@@ -212,7 +212,7 @@ def simplify_announcement(
             original=body.text,
             simplified=result["response"],
             language=body.language.value,
-            model_used="gemini-2.0-flash",
+            model_used="gemini-3.5-flash",
         ).model_dump(),
         message="Text simplified successfully",
     )
@@ -264,7 +264,7 @@ def translate_announcement(
             translated=result["response"],
             source_language=body.source_language.value,
             target_language=body.target_language.value,
-            model_used="gemini-2.0-flash",
+            model_used="gemini-3.5-flash",
         ).model_dump(),
         message="Text translated successfully",
     )
