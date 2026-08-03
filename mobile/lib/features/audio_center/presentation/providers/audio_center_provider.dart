@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -77,19 +79,24 @@ class AudioCenterNotifier extends StateNotifier<AudioCenterState> {
   StreamSubscription? _playerStateSub;
 
   AudioCenterNotifier(this._repo) : super(const AudioCenterState()) {
+    debugPrint('[AUDIO_DIAG] Provider: Initializing AudioCenterNotifier');
     _player = AudioPlayer();
     _initPlayer();
+    debugPrint('[AUDIO_DIAG] Provider: AudioCenterNotifier initialized successfully');
   }
 
   void _initPlayer() {
+    debugPrint('[AUDIO_DIAG] Provider: Initializing AudioPlayer');
     _player = AudioPlayer();
     _positionSub = _player!.positionStream.listen((pos) {
       if (mounted) state = state.copyWith(position: pos);
     });
     _durationSub = _player!.durationStream.listen((dur) {
+      debugPrint('[AUDIO_DIAG] Provider: Duration stream event: duration=${dur?.inMilliseconds}ms');
       if (mounted) state = state.copyWith(duration: dur ?? Duration.zero);
     });
     _playerStateSub = _player!.playerStateStream.listen((playerState) {
+      debugPrint('[AUDIO_DIAG] Provider: Player state changed: playing=${playerState.playing}, processingState=${playerState.processingState}');
       if (mounted) {
         state = state.copyWith(
           isPlaying: playerState.playing,
@@ -98,14 +105,20 @@ class AudioCenterNotifier extends StateNotifier<AudioCenterState> {
         );
       }
     });
+    debugPrint('[AUDIO_DIAG] Provider: AudioPlayer initialized and streams subscribed');
   }
 
   Future<void> load() async {
+    debugPrint('[AUDIO_DIAG] Provider: Loading audio items');
     state = state.copyWith(isLoading: true, error: null);
     try {
       final items = await _repo.getAnnouncementAudios();
+      debugPrint('[AUDIO_DIAG] Provider: Loaded ${items.length} audio items successfully');
       state = state.copyWith(isLoading: false, allAudios: items, error: null);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('[AUDIO_DIAG] Provider: Load FAILED');
+      debugPrint('[AUDIO_DIAG] Provider: Error: $e');
+      debugPrint('[AUDIO_DIAG] Provider: Stack trace: $stackTrace');
       state = state.copyWith(
         isLoading: false,
         allAudios: [],
@@ -116,28 +129,45 @@ class AudioCenterNotifier extends StateNotifier<AudioCenterState> {
 
   Future<void> play(AudioItem item) async {
     try {
+      debugPrint('[AUDIO_DIAG] Provider: Playing audio item: id=${item.id}, title=${item.title}');
+      debugPrint('[AUDIO_DIAG] Provider:   - audioUrl=${item.audioUrl}');
+      debugPrint('[AUDIO_DIAG] Provider:   - localPath=${item.localPath}');
+
       final source = item.localPath != null
           ? AudioSource.file(item.localPath!)
           : AudioSource.uri(Uri.parse(item.audioUrl));
 
+      debugPrint('[AUDIO_DIAG] Provider: Audio source created: ${source.runtimeType}');
+      debugPrint('[AUDIO_DIAG] Provider: Initializing player...');
       await _player!.setAudioSource(source);
+      debugPrint('[AUDIO_DIAG] Provider: Player initialized, starting playback...');
       await _player!.play();
+      debugPrint('[AUDIO_DIAG] Provider: Playback started successfully');
       state = state.copyWith(currentlyPlaying: item, isPlaying: true);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('[AUDIO_DIAG] Provider: Playback FAILED');
+      debugPrint('[AUDIO_DIAG] Provider: Error: $e');
+      debugPrint('[AUDIO_DIAG] Provider: Stack trace: $stackTrace');
       state = state.copyWith(error: 'Failed to play audio');
     }
   }
 
   Future<void> togglePlayPause() async {
-    if (_player == null) return;
+    if (_player == null) {
+      debugPrint('[AUDIO_DIAG] Provider: togglePlayPause called but player is null');
+      return;
+    }
     if (state.isPlaying) {
+      debugPrint('[AUDIO_DIAG] Provider: Pausing playback');
       await _player!.pause();
     } else if (state.currentlyPlaying != null) {
+      debugPrint('[AUDIO_DIAG] Provider: Resuming playback');
       await _player!.play();
     }
   }
 
   Future<void> seek(Duration position) async {
+    debugPrint('[AUDIO_DIAG] Provider: Seeking to position=${position.inMilliseconds}ms');
     await _player?.seek(position);
   }
 
@@ -149,7 +179,10 @@ class AudioCenterNotifier extends StateNotifier<AudioCenterState> {
   Future<void> download(AudioItem item) async {
     try {
       final filename = '${item.id}.mp3';
+      debugPrint('[AUDIO_DIAG] Provider: Downloading audio: id=${item.id}, filename=$filename');
+      debugPrint('[AUDIO_DIAG] Provider:   - audioUrl=${item.audioUrl}');
       final localPath = await _repo.downloadAudio(item.audioUrl, filename);
+      debugPrint('[AUDIO_DIAG] Provider: Download complete: localPath=$localPath');
       state = state.copyWith(
         allAudios: state.allAudios.map((a) {
           if (a.id == item.id) {
@@ -158,7 +191,10 @@ class AudioCenterNotifier extends StateNotifier<AudioCenterState> {
           return a;
         }).toList(),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('[AUDIO_DIAG] Provider: Download FAILED');
+      debugPrint('[AUDIO_DIAG] Provider: Error: $e');
+      debugPrint('[AUDIO_DIAG] Provider: Stack trace: $stackTrace');
       state = state.copyWith(error: 'Download failed');
     }
   }

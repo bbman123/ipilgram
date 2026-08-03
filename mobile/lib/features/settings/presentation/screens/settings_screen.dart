@@ -53,6 +53,59 @@ class SettingsScreen extends ConsumerWidget {
             ),
             sliver: SliverList.list(
               children: [
+                // Status messages
+                if (settings.isLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: LinearProgressIndicator(),
+                  ),
+                if (settings.successMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              settings.successMessage!,
+                              style: TextStyle(color: theme.colorScheme.onPrimaryContainer),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (settings.error != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: theme.colorScheme.error, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              settings.error!,
+                              style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 _SectionHeader(title: 'Appearance'),
                 _ThemeTile(
                   currentMode: settings.themeMode,
@@ -70,12 +123,21 @@ class SettingsScreen extends ConsumerWidget {
                   onChanged: (v) => ref.read(settingsProvider.notifier).toggleHighContrast(v),
                 ),
                 const Divider(height: 1),
+
                 _SectionHeader(title: 'Language'),
                 _LanguageTile(
                   currentLanguage: settings.language,
                   onChanged: (lang) => ref.read(settingsProvider.notifier).setLanguage(lang),
                 ),
                 const Divider(height: 1),
+
+                _SectionHeader(title: 'Content Delivery'),
+                _DeliveryModeTile(
+                  currentMode: settings.deliveryMode,
+                  onChanged: (mode) => ref.read(settingsProvider.notifier).setDeliveryMode(mode),
+                ),
+                const Divider(height: 1),
+
                 _SectionHeader(title: 'Notifications'),
                 _SwitchTile(
                   icon: Icons.notifications_active,
@@ -85,6 +147,7 @@ class SettingsScreen extends ConsumerWidget {
                   onChanged: (v) => ref.read(settingsProvider.notifier).toggleNotifications(v),
                 ),
                 const Divider(height: 1),
+
                 _SectionHeader(title: 'About'),
                 _InfoTile(
                   icon: Icons.info_outline,
@@ -226,7 +289,7 @@ class _LanguageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final languages = ['English', 'Hausa', 'Yoruba', 'Igbo', 'Arabic'];
+    final languages = ['English', 'Arabic', 'French', 'Urdu', 'Hausa', 'Yoruba', 'Igbo', 'Hindi'];
     return ListTile(
       leading: const Icon(Icons.language),
       title: const Text('Language'),
@@ -234,6 +297,47 @@ class _LanguageTile extends StatelessWidget {
         value: currentLanguage,
         underline: const SizedBox(),
         items: languages.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
+      ),
+    );
+  }
+}
+
+class _DeliveryModeTile extends StatelessWidget {
+  final String currentMode;
+  final ValueChanged<String> onChanged;
+
+  const _DeliveryModeTile({required this.currentMode, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final modes = ['Text', 'Audio', 'Text + Audio'];
+    final icons = [Icons.text_fields, Icons.volume_up, Icons.surround_sound];
+    return ListTile(
+      leading: const Icon(Icons.delivery_dining),
+      title: const Text('Delivery Mode'),
+      subtitle: Text(
+        'Choose how you receive announcements',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      trailing: DropdownButton<String>(
+        value: currentMode,
+        underline: const SizedBox(),
+        items: modes.asMap().entries.map((entry) {
+          return DropdownMenuItem(
+            value: entry.value,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icons[entry.key], size: 18),
+                const SizedBox(width: 8),
+                Text(entry.value),
+              ],
+            ),
+          );
+        }).toList(),
         onChanged: (v) {
           if (v != null) onChanged(v);
         },

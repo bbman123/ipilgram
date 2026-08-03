@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = ""
 
     CORS_ORIGINS: str = '["http://localhost:5173"]'
+    BASE_URL: str = "https://ipilgram.onrender.com"
 
     @field_validator("CORS_ORIGINS", mode="after")
     @classmethod

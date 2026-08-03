@@ -38,6 +38,80 @@ def _enrich_pref(pref: Preference, pilgrim: User | None) -> PreferenceWithPilgri
     )
 
 
+# ---------------------------------------------------------------------------
+# Pilgrim self-service endpoints (MUST be before /{preference_id})
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/me",
+    summary="Get my preferences",
+    description="Pilgrims can retrieve their own preferences.",
+    responses={
+        200: {"description": "Preference record"},
+        401: {"description": "Authentication required"},
+    },
+)
+def get_my_preferences(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    pref = db.query(Preference).filter(Preference.pilgrim_id == current_user.id).first()
+    if not pref:
+        return success_response(
+            data={
+                "id": 0,
+                "pilgrim_id": current_user.id,
+                "preferred_language": "English",
+                "delivery_mode": "Text",
+                "font_size": 16,
+                "notifications_enabled": True,
+                "pilgrim_name": current_user.full_name,
+                "pilgrim_email": current_user.email,
+            },
+            message="Using default preferences",
+        )
+    return success_response(data=_enrich_pref(pref, current_user).model_dump(), message="Preferences retrieved successfully")
+
+
+@router.put(
+    "/me",
+    summary="Update my preferences",
+    description="Pilgrims can update their own language and notification preferences.",
+    responses={
+        200: {"description": "Preference updated successfully"},
+        401: {"description": "Authentication required"},
+    },
+)
+def update_my_preferences(
+    body: PreferenceUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    pref = db.query(Preference).filter(Preference.pilgrim_id == current_user.id).first()
+    if not pref:
+        pref = Preference(
+            pilgrim_id=current_user.id,
+            preferred_language=body.preferred_language or "English",
+            delivery_mode=body.delivery_mode or "Text",
+            font_size=body.font_size or 16,
+            notifications_enabled=body.notifications_enabled if body.notifications_enabled is not None else True,
+        )
+        db.add(pref)
+    else:
+        update_data = body.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(pref, field, value)
+    db.commit()
+    db.refresh(pref)
+    return success_response(data=_enrich_pref(pref, current_user).model_dump(), message="Preferences updated successfully")
+
+
+# ---------------------------------------------------------------------------
+# Admin endpoints
+# ---------------------------------------------------------------------------
+
+
 @router.get(
     "",
     summary="List all preferences",
@@ -120,31 +194,6 @@ def get_preference_by_pilgrim(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Preference not found for this pilgrim",
-        )
-    pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
-    return success_response(data=_enrich_pref(pref, pilgrim).model_dump(), message="Preference retrieved successfully")
-
-
-@router.get(
-    "/{preference_id}",
-    summary="Get preference by ID",
-    description="Retrieve a single preference record with pilgrim details.",
-    responses={
-        200: {"description": "Preference record with pilgrim info"},
-        401: {"description": "Authentication required"},
-        403: {"description": "Admin role required"},
-        404: {"description": "Preference not found"},
-    },
-)
-def get_preference(
-    preference_id: int,
-    db: Annotated[Session, Depends(get_db)],
-    _admin: Annotated[User, Depends(require_role(Role.admin))],
-):
-    pref = db.query(Preference).filter(Preference.id == preference_id).first()
-    if not pref:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Preference not found"
         )
     pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
     return success_response(data=_enrich_pref(pref, pilgrim).model_dump(), message="Preference retrieved successfully")
@@ -255,34 +304,26 @@ def delete_preference(
     db.commit()
 
 
-@router.put(
-    "/me",
-    summary="Update my preferences",
-    description="Pilgrims can update their own language and notification preferences.",
+@router.get(
+    "/{preference_id}",
+    summary="Get preference by ID",
+    description="Retrieve a single preference record with pilgrim details.",
     responses={
-        200: {"description": "Preference updated successfully"},
+        200: {"description": "Preference record with pilgrim info"},
         401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "Preference not found"},
     },
 )
-def update_my_preferences(
-    body: PreferenceUpdate,
+def get_preference(
+    preference_id: int,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    _admin: Annotated[User, Depends(require_role(Role.admin))],
 ):
-    pref = db.query(Preference).filter(Preference.pilgrim_id == current_user.id).first()
+    pref = db.query(Preference).filter(Preference.id == preference_id).first()
     if not pref:
-        pref = Preference(
-            pilgrim_id=current_user.id,
-            preferred_language=body.preferred_language or "English",
-            delivery_mode=body.delivery_mode or "Text",
-            font_size=body.font_size or 16,
-            notifications_enabled=body.notifications_enabled if body.notifications_enabled is not None else True,
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Preference not found"
         )
-        db.add(pref)
-    else:
-        update_data = body.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(pref, field, value)
-    db.commit()
-    db.refresh(pref)
-    return success_response(data=_enrich_pref(pref, current_user).model_dump(), message="Preferences updated successfully")
+    pilgrim = db.query(User).filter(User.id == pref.pilgrim_id).first()
+    return success_response(data=_enrich_pref(pref, pilgrim).model_dump(), message="Preference retrieved successfully")

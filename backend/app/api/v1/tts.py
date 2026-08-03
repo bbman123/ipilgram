@@ -58,8 +58,9 @@ def text_to_speech(
     )
 
 
-@router.get(
+@router.api_route(
     "/audio/{filename}",
+    methods=["GET", "HEAD"],
     summary="Download audio file",
     description="Serve a cached MP3 audio file by filename. No authentication required.",
     responses={
@@ -69,15 +70,30 @@ def text_to_speech(
 )
 def serve_audio(filename: str):
     """Serve a cached audio file. No authentication required."""
+    logger.info("[AUDIO_DIAG] serve_audio called: filename=%s", filename)
+
     safe_name = Path(filename).name
     if safe_name != filename or ".." in filename or "/" in filename or "\\" in filename:
+        logger.warning("[AUDIO_DIAG] serve_audio rejected invalid filename: %s", filename)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Audio not found"
         )
 
     filepath = AUDIO_CACHE_DIR / safe_name
-    if not filepath.exists() or filepath.suffix != ".mp3":
+    file_exists = filepath.exists()
+    is_mp3 = filepath.suffix == ".mp3" if file_exists else False
+    file_size = filepath.stat().st_size if file_exists else 0
+
+    logger.info(
+        "[AUDIO_DIAG] serve_audio file check: filename=%s, file_exists=%s, is_mp3=%s, file_size=%d bytes, full_path=%s",
+        safe_name, file_exists, is_mp3, file_size, str(filepath),
+    )
+
+    if not file_exists or not is_mp3:
+        logger.warning("[AUDIO_DIAG] serve_audio returning 404: filename=%s, file_exists=%s, is_mp3=%s", safe_name, file_exists, is_mp3)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Audio not found"
         )
+
+    logger.info("[AUDIO_DIAG] serve_audio returning file: filename=%s, content_type=audio/mpeg, file_size=%d bytes", safe_name, file_size)
     return FileResponse(str(filepath), media_type="audio/mpeg", filename=filename)
