@@ -73,16 +73,20 @@ class TestTranslationService:
         self.service.cache.clear()
         self.service._provider = None
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_english_passthrough(self, mock_gemini_cls):
+    def test_translate_text_english_passthrough(self, mock_gemini_cls, mock_settings):
         """English text should pass through without AI call."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         result = self.service.translate_text("Hello world", "English")
         assert result == "Hello world"
         mock_gemini_cls.assert_not_called()
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_to_hausa(self, mock_gemini_cls):
+    def test_translate_text_to_hausa(self, mock_gemini_cls, mock_settings):
         """Translation to Hausa should call Gemini."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         mock_provider = MagicMock()
         mock_response = MagicMock()
         mock_response.text = "Sannu duniya"
@@ -95,9 +99,11 @@ class TestTranslationService:
         assert result == "Sannu duniya"
         mock_provider.generate.assert_called_once()
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_to_arabic(self, mock_gemini_cls):
+    def test_translate_text_to_arabic(self, mock_gemini_cls, mock_settings):
         """Translation to Arabic should call Gemini."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         mock_provider = MagicMock()
         mock_response = MagicMock()
         mock_response.text = "مرحبا بالعالم"
@@ -110,9 +116,11 @@ class TestTranslationService:
         assert result == "مرحبا بالعالم"
         mock_provider.generate.assert_called_once()
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_to_french(self, mock_gemini_cls):
+    def test_translate_text_to_french(self, mock_gemini_cls, mock_settings):
         """Translation to French should call Gemini."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         mock_provider = MagicMock()
         mock_response = MagicMock()
         mock_response.text = "Bonjour le monde"
@@ -123,10 +131,13 @@ class TestTranslationService:
         result = self.service.translate_text("Hello world", "French")
 
         assert result == "Bonjour le monde"
+        mock_provider.generate.assert_called_once()
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_to_urdu(self, mock_gemini_cls):
+    def test_translate_text_to_urdu(self, mock_gemini_cls, mock_settings):
         """Translation to Urdu should call Gemini."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         mock_provider = MagicMock()
         mock_response = MagicMock()
         mock_response.text = "ہیلو دنیا"
@@ -137,10 +148,13 @@ class TestTranslationService:
         result = self.service.translate_text("Hello world", "Urdu")
 
         assert result == "ہیلو دنیا"
+        mock_provider.generate.assert_called_once()
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_to_yoruba(self, mock_gemini_cls):
+    def test_translate_text_to_yoruba(self, mock_gemini_cls, mock_settings):
         """Translation to Yoruba should call Gemini."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         mock_provider = MagicMock()
         mock_response = MagicMock()
         mock_response.text = "Bawo ni ayé"
@@ -151,10 +165,13 @@ class TestTranslationService:
         result = self.service.translate_text("Hello world", "Yoruba")
 
         assert result == "Bawo ni ayé"
+        mock_provider.generate.assert_called_once()
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_to_igbo(self, mock_gemini_cls):
+    def test_translate_text_to_igbo(self, mock_gemini_cls, mock_settings):
         """Translation to Igbo should call Gemini."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         mock_provider = MagicMock()
         mock_response = MagicMock()
         mock_response.text = "Ndewo ụwa"
@@ -165,10 +182,13 @@ class TestTranslationService:
         result = self.service.translate_text("Hello world", "Igbo")
 
         assert result == "Ndewo ụwa"
+        mock_provider.generate.assert_called_once()
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_to_hindi(self, mock_gemini_cls):
+    def test_translate_text_to_hindi(self, mock_gemini_cls, mock_settings):
         """Translation to Hindi should call Gemini."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         mock_provider = MagicMock()
         mock_response = MagicMock()
         mock_response.text = "नमस्ते दुनिया"
@@ -179,24 +199,31 @@ class TestTranslationService:
         result = self.service.translate_text("Hello world", "Hindi")
 
         assert result == "नमस्ते दुनिया"
+        mock_provider.generate.assert_called_once()
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_empty_input(self, mock_gemini_cls):
+    def test_translate_text_empty_input(self, mock_gemini_cls, mock_settings):
         """Empty text should pass through without calling Gemini."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         result = self.service.translate_text("", "Hausa")
         assert result == ""
         mock_gemini_cls.assert_not_called()
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_whitespace_only(self, mock_gemini_cls):
+    def test_translate_text_whitespace_only(self, mock_gemini_cls, mock_settings):
         """Whitespace-only text should pass through without calling Gemini."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         result = self.service.translate_text("   ", "Hausa")
         assert result == "   "
         mock_gemini_cls.assert_not_called()
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_gemini_error_returns_original(self, mock_gemini_cls):
+    def test_translate_text_gemini_error_returns_original(self, mock_gemini_cls, mock_settings):
         """Gemini error should return original text."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         mock_provider = MagicMock()
         mock_provider.generate.side_effect = Exception("Gemini API error")
         mock_gemini_cls.return_value = mock_provider
@@ -204,9 +231,11 @@ class TestTranslationService:
         result = self.service.translate_text("Hello", "Hausa")
         assert result == "Hello"
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_text_gemini_empty_response_fallback(self, mock_gemini_cls):
+    def test_translate_text_gemini_empty_response_fallback(self, mock_gemini_cls, mock_settings):
         """Empty Gemini response should return original text."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         mock_provider = MagicMock()
         mock_response = MagicMock()
         mock_response.text = ""
@@ -228,9 +257,11 @@ class TestTranslationService:
         assert message == "Your flight departs at 8:00 AM"
         assert was_translated is False
 
+    @patch("app.services.translation.get_settings")
     @patch("app.services.translation.GeminiProvider")
-    def test_translate_announcement_with_caching(self, mock_gemini_cls):
+    def test_translate_announcement_with_caching(self, mock_gemini_cls, mock_settings):
         """Translation should be cached by announcement_id + language."""
+        mock_settings.return_value.gemini_api_key = "fake-key"
         mock_provider = MagicMock()
         mock_response = MagicMock()
         mock_response.text = "Translated text"

@@ -266,11 +266,14 @@ def get_my_announcements(
     else:
         lang = "English"
 
-    lang_code_map = {"English": "en", "Hausa": "ha", "Arabic": "ar", "Yoruba": "yo", "Igbo": "ig"}
+    lang_code_map = {
+        "English": "en", "Hausa": "ha", "Yoruba": "yo", "Igbo": "ig",
+        "Arabic": "ar", "French": "fr", "Urdu": "ur", "Hindi": "hi",
+    }
     lang_code = lang_code_map.get(lang, "en")
 
     logger.info(
-        "Pilgrim_id=%d language=%s lang_code=%s announcements=%d",
+        "Announcements: pilgrim_id=%d, language=%s, lang_code=%s, announcements=%d",
         current_user.id,
         lang,
         lang_code,
@@ -294,11 +297,17 @@ def get_my_announcements(
             )
             title_with_placeholders = translated_title
             personalized_message = translated_message
+            logger.info(
+                "Translated announcement %d to %s: was_translated=%s",
+                a.id, lang, is_translated,
+            )
 
-        # Generate audio from translated text
+        # Generate audio from translated text (pass language name, not code)
         audio_url = None
         try:
-            audio_url = generate_audio(personalized_message, lang_code)
+            audio_url = generate_audio(personalized_message, lang)
+            if audio_url:
+                logger.info("TTS for announcement %d: language=%s, url=%s", a.id, lang, audio_url)
         except Exception as e:
             logger.warning("TTS generation failed for announcement %d: %s", a.id, str(e))
 

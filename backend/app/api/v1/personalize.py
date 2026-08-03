@@ -156,11 +156,9 @@ def ask_ai_audio(
         ))
 
     language = result.get("language", "English")
-    tts_map = {"English": "en", "Hausa": "ha", "Arabic": "ar", "Yoruba": "yo", "Igbo": "ig"}
-    lang_code = tts_map.get(language, "en")
 
     from app.services.tts import AUDIO_CACHE_DIR
-    audio_url = generate_audio(result["response"], lang_code)
+    audio_url = generate_audio(result["response"], language)
     if not audio_url:
         return _ai_error_response(GeminiError(
             message="Audio generation failed. Please try again later.",
@@ -169,6 +167,8 @@ def ask_ai_audio(
         ))
 
     import hashlib
+    from app.services.tts import _resolve_lang_code
+    lang_code = _resolve_lang_code(language)
     key = hashlib.sha256(f"{result['response']}:{lang_code}".encode()).hexdigest()
     filepath = AUDIO_CACHE_DIR / f"{key}.mp3"
     if not filepath.exists():

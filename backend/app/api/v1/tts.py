@@ -11,7 +11,7 @@ from app.core.rate_limit import limiter
 from app.schemas.response import success_response
 from app.models.user import User, Role
 from app.schemas.tts import TTSRequest, TTSResponse
-from app.services.tts import generate_audio, AUDIO_CACHE_DIR
+from app.services.tts import generate_audio, AUDIO_CACHE_DIR, _resolve_lang_code
 
 logger = logging.getLogger("hajj_api")
 
@@ -44,9 +44,7 @@ def text_to_speech(
             detail="TTS generation failed. Please try again later.",
         )
 
-    lang_code = {"English": "en", "Hausa": "ha", "Yoruba": "yo", "Igbo": "ig", "Arabic": "ar"}.get(
-        body.language.value, "en"
-    )
+    lang_code = _resolve_lang_code(body.language.value)
     key = hashlib.sha256(f"{body.text}:{lang_code}".encode()).hexdigest()
     cached = (AUDIO_CACHE_DIR / f"{key}.mp3").exists()
 
