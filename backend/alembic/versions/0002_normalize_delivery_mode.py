@@ -1,4 +1,8 @@
-"""normalize delivery mode enum values
+"""no-op: delivery mode normalization is handled at the application layer
+
+The DB stores 'Text + Audio' which matches DeliveryMode.TextPlusAudio.value.
+The DeliveryModeType adapter converts it correctly on read.
+Pydantic validators normalize input on write.
 
 Revision ID: 0002
 Revises: 0001
@@ -17,25 +21,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-
-    # 1. Add 'TextPlusAudio' to the PostgreSQL enum type
-    bind.execute(sa.text(
-        "ALTER TYPE deliverymode ADD VALUE IF NOT EXISTS 'TextPlusAudio'"
-    ))
-
-    # 2. Normalize existing rows from legacy value to canonical value
-    bind.execute(sa.text(
-        "UPDATE preferences SET delivery_mode = 'TextPlusAudio' WHERE delivery_mode = 'Text + Audio'"
-    ))
+    pass
 
 
 def downgrade() -> None:
-    bind = op.get_bind()
-
-    # Revert rows back to legacy value
-    bind.execute(sa.text(
-        "UPDATE preferences SET delivery_mode = 'Text + Audio' WHERE delivery_mode = 'TextPlusAudio'"
-    ))
-
-    # Note: PostgreSQL does not support removing enum values
+    pass
