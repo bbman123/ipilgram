@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart' as dio;
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/storage_keys.dart';
 
 class SettingsState {
   final ThemeMode themeMode;
@@ -65,6 +68,21 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(language: lang);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('language', lang);
+
+    // Save to backend
+    try {
+      final dioClient = dio.Dio(dio.BaseOptions(baseUrl: ApiConstants.baseUrl));
+      final token = prefs.getString(StorageKeys.accessToken);
+      if (token != null) {
+        await dioClient.put(
+          '/preferences/me',
+          data: {'preferred_language': lang},
+          options: dio.Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+      }
+    } catch (_) {
+      // Backend save failed, local preference still saved
+    }
   }
 
   Future<void> toggleNotifications(bool value) async {

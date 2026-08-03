@@ -109,7 +109,7 @@ class AudioCenterNotifier extends StateNotifier<AudioCenterState> {
       state = state.copyWith(
         isLoading: false,
         allAudios: [],
-        error: null,
+        error: e.toString(),
       );
     }
   }

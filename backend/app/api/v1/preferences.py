@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.api.deps import require_role
+from app.api.deps import require_role, get_current_user
 from app.models.user import User, Role
 from app.models.preference import Preference
 from app.schemas.common import PaginationParams, SortingParams, paginate
@@ -253,3 +253,36 @@ def delete_preference(
         )
     db.delete(pref)
     db.commit()
+
+
+@router.put(
+    "/me",
+    summary="Update my preferences",
+    description="Pilgrims can update their own language and notification preferences.",
+    responses={
+        200: {"description": "Preference updated successfully"},
+        401: {"description": "Authentication required"},
+    },
+)
+def update_my_preferences(
+    body: PreferenceUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    pref = db.query(Preference).filter(Preference.pilgrim_id == current_user.id).first()
+    if not pref:
+        pref = Preference(
+            pilgrim_id=current_user.id,
+            preferred_language=body.preferred_language or "English",
+            delivery_mode=body.delivery_mode or "Text",
+            font_size=body.font_size or 16,
+            notifications_enabled=body.notifications_enabled if body.notifications_enabled is not None else True,
+        )
+        db.add(pref)
+    else:
+        update_data = body.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(pref, field, value)
+    db.commit()
+    db.refresh(pref)
+    return success_response(data=_enrich_pref(pref, current_user).model_dump(), message="Preferences updated successfully")

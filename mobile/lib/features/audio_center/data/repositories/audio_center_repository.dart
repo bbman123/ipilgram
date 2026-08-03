@@ -67,7 +67,7 @@ class AudioCenterRepository {
         id: 'ann_${e['id']}',
         title: e['title'] ?? 'Announcement',
         subtitle: e['message'] ?? '',
-        audioUrl: audioUrl.startsWith('http') ? audioUrl : '${ApiConstants.baseUrl}$audioUrl',
+        audioUrl: audioUrl.startsWith('http') ? audioUrl : 'https://ipilgram.onrender.com$audioUrl',
         localPath: localFile.existsSync() ? localFile.path : null,
         isDownloaded: localFile.existsSync(),
         createdAt: e['publish_date'] != null ? DateTime.tryParse(e['publish_date'] as String) : null,
