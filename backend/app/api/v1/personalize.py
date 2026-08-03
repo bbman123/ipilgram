@@ -1,4 +1,5 @@
 import logging
+import traceback
 
 from typing import Annotated
 
@@ -33,6 +34,15 @@ router = APIRouter(prefix="/personalize", tags=["AI Personalization"])
 def _get_engine() -> PersonalizationEngine:
     settings = get_settings()
     api_key = settings.GEMINI_API_KEY
+
+    logger.info(
+        "AI config: enabled=%s, model=%s, api_key_exists=%s, api_key_length=%s, provider=gemini, timeout=30, temperature=0.3, max_tokens=2048",
+        bool(api_key),
+        "gemini-3.5-flash",
+        bool(api_key),
+        len(api_key) if api_key else 0,
+    )
+
     if not api_key:
         return None
     return PersonalizationEngine(GeminiProvider(api_key))
@@ -75,6 +85,8 @@ def ask_ai(
     pilgrim: Annotated[User, Depends(require_role(Role.pilgrim))],
     db: Annotated[object, Depends(get_db)],
 ):
+    logger.info("Entering /ask: pilgrim_id=%d, query=%r", pilgrim.id, body.query[:100])
+
     engine = _get_engine()
     if engine is None:
         return _ai_error_response(GeminiError(
@@ -89,12 +101,14 @@ def ask_ai(
         return _ai_error_response(e)
     except Exception as e:
         logger.error("Unexpected error on /ask: pilgrim=%d: %s", pilgrim.id, str(e))
+        logger.error("Full traceback on /ask:\n%s", traceback.format_exc())
         return _ai_error_response(GeminiError(
             message="An unexpected error occurred. Please try again later.",
             status_code=500,
             details={"reason": "internal_error", "error": str(e)[:200]},
         ))
 
+    logger.info("Returning /ask result: success=True, category=%s", result.get("category"))
     return success_response(data=AIQueryResponse(**result).model_dump(), message="AI response generated")
 
 
@@ -134,6 +148,7 @@ def ask_ai_audio(
         return _ai_error_response(e)
     except Exception as e:
         logger.error("Unexpected error on /ask/audio: pilgrim=%d: %s", pilgrim.id, str(e))
+        logger.error("Full traceback on /ask/audio:\n%s", traceback.format_exc())
         return _ai_error_response(GeminiError(
             message="An unexpected error occurred. Please try again later.",
             status_code=500,

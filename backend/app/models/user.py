@@ -20,7 +20,10 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255))
     hashed_password: Mapped[str] = mapped_column(String(255))
-    role: Mapped[Role] = mapped_column(Enum(Role), default=Role.pilgrim)
+    role: Mapped[Role] = mapped_column(
+        Enum(Role, name="role", create_type=False),
+        default=Role.pilgrim,
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     package_id: Mapped[int | None] = mapped_column(ForeignKey("packages.id", ondelete="SET NULL"), nullable=True, index=True)
 

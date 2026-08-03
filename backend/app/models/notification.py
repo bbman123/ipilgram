@@ -36,9 +36,12 @@ class Notification(Base):
     )
     title: Mapped[str] = mapped_column(String(255))
     message: Mapped[str] = mapped_column(Text)
-    notification_type: Mapped[NotificationType] = mapped_column(Enum(NotificationType))
+    notification_type: Mapped[NotificationType] = mapped_column(
+        Enum(NotificationType, name="notificationtype", create_type=False),
+    )
     status: Mapped[NotificationStatus] = mapped_column(
-        Enum(NotificationStatus), default=NotificationStatus.pending
+        Enum(NotificationStatus, name="notificationstatus", create_type=False),
+        default=NotificationStatus.pending,
     )
     scheduled_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

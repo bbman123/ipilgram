@@ -27,7 +27,8 @@ class Transport(Base):
     driver_name: Mapped[str] = mapped_column(String(255))
     driver_phone: Mapped[str] = mapped_column(String(50))
     transport_type: Mapped[TransportType] = mapped_column(
-        Enum(TransportType), default=TransportType.bus
+        Enum(TransportType, name="transporttype", create_type=False),
+        default=TransportType.bus,
     )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

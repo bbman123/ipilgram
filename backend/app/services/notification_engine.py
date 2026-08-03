@@ -121,7 +121,7 @@ def _build_flight_context(flight: Flight) -> dict:
         "arrival_time": arr.strftime("%I:%M %p") if arr else "TBA",
         "gate": flight.gate or "TBA",
         "seat": flight.seat_number or "TBA",
-        "status": flight.status.value,
+        "status": flight.status.value if hasattr(flight.status, "value") else str(flight.status),
     }
 
 
@@ -137,7 +137,7 @@ def _build_accommodation_context(acc: Accommodation) -> dict:
 
 def _build_transport_context(transport: Transport) -> dict:
     return {
-        "transport_type": transport.transport_type.value,
+        "transport_type": transport.transport_type.value if hasattr(transport.transport_type, "value") else str(transport.transport_type),
         "pickup_location": transport.pickup_location,
         "destination": transport.destination,
         "pickup_time": transport.pickup_time.strftime("%I:%M %p") if transport.pickup_time else "TBA",

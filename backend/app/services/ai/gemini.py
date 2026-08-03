@@ -40,6 +40,11 @@ class GeminiProvider(AIProvider):
             )
         self.api_key = api_key
         self.client = httpx.Client(timeout=30)
+        logger.info(
+            "GeminiProvider initialized: model=%s, api_key_present=True, api_key_length=%d",
+            self.MODEL,
+            len(api_key),
+        )
 
     @property
     def name(self) -> str:
@@ -49,6 +54,13 @@ class GeminiProvider(AIProvider):
         return bool(self.api_key)
 
     def generate(self, prompt: str, system_instruction: str = "") -> AIResponse:
+        logger.info(
+            "Entering GeminiProvider.generate: prompt_type=%s, prompt_length=%d, has_system_instruction=%s",
+            type(prompt).__name__,
+            len(prompt),
+            bool(system_instruction),
+        )
+
         url = f"{self.BASE_URL}/{self.MODEL}:generateContent?key={self.api_key}"
 
         contents = []
@@ -75,6 +87,7 @@ class GeminiProvider(AIProvider):
             },
         }
 
+        logger.info("Sending HTTP POST to Gemini API...")
         try:
             resp = self.client.post(url, json=payload)
         except httpx.TimeoutException:
@@ -99,7 +112,8 @@ class GeminiProvider(AIProvider):
                 details={"reason": "http_error", "error": str(e)},
             )
 
-        # Handle non-200 responses
+        logger.info("Gemini API response: status_code=%d", resp.status_code)
+
         if resp.status_code != 200:
             body = resp.text
             logger.error(
@@ -145,7 +159,7 @@ class GeminiProvider(AIProvider):
                     details={"reason": "unknown", "status": resp.status_code, "raw": body[:300]},
                 )
 
-        # Parse successful response
+        logger.info("Parsing Gemini response JSON...")
         try:
             data = resp.json()
         except Exception as e:
@@ -156,7 +170,12 @@ class GeminiProvider(AIProvider):
                 details={"reason": "invalid_json"},
             )
 
-        # Check for safety blocks or empty candidates
+        logger.info(
+            "Gemini response data type=%s, keys=%s",
+            type(data).__name__,
+            list(data.keys()) if isinstance(data, dict) else "N/A",
+        )
+
         candidates = data.get("candidates")
         if not candidates:
             prompt_feedback = data.get("promptFeedback", {})
@@ -175,15 +194,21 @@ class GeminiProvider(AIProvider):
                 details={"reason": "no_candidates"},
             )
 
+        logger.info(
+            "Gemini candidates count=%d, candidate type=%s",
+            len(candidates),
+            type(candidates[0]).__name__,
+        )
+
         candidate = candidates[0]
 
-        # Check for finish reason errors
         finish_reason = candidate.get("finishReason")
+        logger.info("Gemini finishReason=%s", finish_reason)
         if finish_reason and finish_reason != "STOP":
             logger.warning("Gemini finished with reason: %s", finish_reason)
 
-        # Extract text from response
         content = candidate.get("content")
+        logger.info("Gemini content type=%s", type(content).__name__ if content else "None")
         if not content:
             logger.error("Gemini candidate has no content: %s", str(candidate)[:500])
             raise GeminiError(
@@ -193,6 +218,7 @@ class GeminiProvider(AIProvider):
             )
 
         parts = content.get("parts")
+        logger.info("Gemini parts type=%s, count=%d", type(parts).__name__ if parts else "None", len(parts) if parts else 0)
         if not parts:
             logger.error("Gemini content has no parts: %s", str(content)[:500])
             raise GeminiError(
@@ -201,7 +227,20 @@ class GeminiProvider(AIProvider):
                 details={"reason": "no_parts"},
             )
 
+        for i, part in enumerate(parts):
+            logger.info(
+                "Gemini part[%d] type=%s, keys=%s",
+                i,
+                type(part).__name__,
+                list(part.keys()) if isinstance(part, dict) else "N/A",
+            )
+
         text = parts[0].get("text", "")
+        logger.info(
+            "Gemini text type=%s, length=%d",
+            type(text).__name__,
+            len(text),
+        )
         if not text.strip():
             logger.error("Gemini returned empty text")
             raise GeminiError(
@@ -210,6 +249,21 @@ class GeminiProvider(AIProvider):
                 details={"reason": "empty_text"},
             )
 
-        token_count = data.get("usageMetadata", {}).get("totalTokenCount", 0)
+        usage = data.get("usageMetadata", {})
+        token_count = usage.get("totalTokenCount", 0)
+        logger.info(
+            "Gemini usageMetadata: promptTokenCount=%s, candidatesTokenCount=%s, totalTokenCount=%s",
+            usage.get("promptTokenCount"),
+            usage.get("candidatesTokenCount"),
+            token_count,
+        )
 
-        return AIResponse(text=text.strip(), model=self.MODEL, tokens_used=token_count)
+        result = AIResponse(text=text.strip(), model=self.MODEL, tokens_used=token_count)
+        logger.info(
+            "Returning AIResponse: type=%s, text_length=%d, model=%s, tokens_used=%d",
+            type(result).__name__,
+            len(result.text),
+            result.model,
+            result.tokens_used,
+        )
+        return result

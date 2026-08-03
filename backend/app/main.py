@@ -51,6 +51,13 @@ async def lifespan(application: FastAPI):
     from app.core.config import get_settings
     cfg = get_settings()
     gemini_configured = bool(cfg.GEMINI_API_KEY)
+    logger.info(
+        "AI config: enabled=%s, model=%s, api_key_exists=%s, api_key_length=%s, provider=gemini",
+        gemini_configured,
+        "gemini-3.5-flash",
+        gemini_configured,
+        len(cfg.GEMINI_API_KEY) if cfg.GEMINI_API_KEY else 0,
+    )
     if gemini_configured:
         try:
             provider = GeminiProvider(cfg.GEMINI_API_KEY)
@@ -147,12 +154,22 @@ def create_app() -> FastAPI:
 
     @application.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
+        import traceback as _traceback
         request_id = getattr(request.state, "request_id", "unknown")
         logger.error("Unhandled exception [%s]: %s", request_id, str(exc))
+        logger.error("Full traceback [%s]:\n%s", request_id, _traceback.format_exc())
         if settings.DEBUG:
             return JSONResponse(
                 status_code=500,
-                content={"success": False, "message": str(exc), "data": None, "errors": None},
+                content={
+                    "success": False,
+                    "message": str(exc),
+                    "data": None,
+                    "errors": {
+                        "type": type(exc).__name__,
+                        "traceback": _traceback.format_exc(),
+                    },
+                },
             )
         return JSONResponse(
             status_code=500,

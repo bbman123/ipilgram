@@ -30,11 +30,11 @@ class Preference(Base):
         ForeignKey("users.id", ondelete="CASCADE"), unique=True
     )
     preferred_language: Mapped[PreferredLanguage] = mapped_column(
-        Enum("English", "Hausa", "Yoruba", "Igbo", "Arabic", name="preferredlanguage", create_type=False),
+        Enum(PreferredLanguage, name="preferredlanguage", create_type=False),
         default=PreferredLanguage.English,
     )
     delivery_mode: Mapped[DeliveryMode] = mapped_column(
-        Enum("Text", "Audio", "Text + Audio", name="deliverymode", create_type=False),
+        Enum(DeliveryMode, name="deliverymode", create_type=False),
         default=DeliveryMode.Text,
     )
     font_size: Mapped[int] = mapped_column(Integer, default=16)

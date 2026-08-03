@@ -32,7 +32,8 @@ class Flight(Base):
     gate: Mapped[str | None] = mapped_column(String(20), nullable=True)
     seat_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
     status: Mapped[FlightStatus] = mapped_column(
-        Enum(FlightStatus), default=FlightStatus.scheduled
+        Enum(FlightStatus, name="flightstatus", create_type=False),
+        default=FlightStatus.scheduled,
     )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

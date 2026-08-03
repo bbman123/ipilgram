@@ -5,6 +5,7 @@ data the pilgrim is authorized to see, formats it as a structured context,
 and passes it to the AI provider.
 """
 
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
@@ -16,6 +17,8 @@ from app.models.accommodation import Accommodation
 from app.models.transport import Transport
 from app.models.announcement import Announcement, TargetType
 from app.models.preference import Preference
+
+logger = logging.getLogger("hajj_api")
 
 
 class PilgrimContext:
@@ -46,7 +49,39 @@ class PilgrimContext:
         """
         lines = []
 
-        lang = self.preference.preferred_language.value if self.preference else "English"
+        logger.info("Entering to_prompt_context...")
+
+        if self.preference and self.preference.preferred_language:
+            logger.info(
+                "preference.preferred_language type=%s value=%r",
+                type(self.preference.preferred_language).__name__,
+                self.preference.preferred_language,
+            )
+        if self.flight and self.flight.status:
+            logger.info(
+                "flight.status type=%s value=%r",
+                type(self.flight.status).__name__,
+                self.flight.status,
+            )
+        if self.transport and self.transport.transport_type:
+            logger.info(
+                "transport.transport_type type=%s value=%r",
+                type(self.transport.transport_type).__name__,
+                self.transport.transport_type,
+            )
+        if self.announcements:
+            for i, a in enumerate(self.announcements[:3]):
+                logger.info(
+                    "announcement[%d].priority type=%s value=%r",
+                    i,
+                    type(a.priority).__name__,
+                    a.priority,
+                )
+
+        if self.preference and self.preference.preferred_language:
+            lang = self.preference.preferred_language.value
+        else:
+            lang = "English"
 
         lines.append("=== PILGRIM PROFILE ===")
         lines.append(f"Name: {self.pilgrim.full_name}")
@@ -72,7 +107,11 @@ class PilgrimContext:
                 lines.append(f"Gate: {self.flight.gate}")
             if self.flight.seat_number:
                 lines.append(f"Seat: {self.flight.seat_number}")
-            lines.append(f"Status: {self.flight.status.value}")
+            flight_status = self.flight.status
+            if hasattr(flight_status, "value"):
+                lines.append(f"Status: {flight_status.value}")
+            else:
+                lines.append(f"Status: {flight_status}")
 
         if self.accommodation:
             lines.append("")
@@ -92,7 +131,12 @@ class PilgrimContext:
         if self.transport:
             lines.append("")
             lines.append("=== TRANSPORT DETAILS ===")
-            lines.append(f"Vehicle: {self.transport.bus_number} ({self.transport.transport_type.value})")
+            transport_type = self.transport.transport_type
+            if hasattr(transport_type, "value"):
+                transport_type_str = transport_type.value
+            else:
+                transport_type_str = str(transport_type)
+            lines.append(f"Vehicle: {self.transport.bus_number} ({transport_type_str})")
             lines.append(f"From: {self.transport.pickup_location}")
             lines.append(f"To: {self.transport.destination}")
             lines.append(f"Pickup time: {self.transport.pickup_time}")
@@ -102,12 +146,19 @@ class PilgrimContext:
             lines.append("")
             lines.append("=== ANNOUNCEMENTS FOR THIS PILGRIM ===")
             for a in self.announcements:
-                lines.append(f"[{a.priority.value.upper()}] {a.title}")
+                priority = a.priority
+                if hasattr(priority, "value"):
+                    priority_str = priority.value.upper()
+                else:
+                    priority_str = str(priority).upper()
+                lines.append(f"[{priority_str}] {a.title}")
                 lines.append(f"  {a.message_template}")
                 lines.append(f"  Valid: {a.publish_date} — {a.expiry_date}")
                 lines.append("")
 
-        return "\n".join(lines)
+        result = "\n".join(lines)
+        logger.info("to_prompt_context complete, length=%d", len(result))
+        return result
 
 
 def build_pilgrim_context(pilgrim_id: int, db: Session) -> PilgrimContext:
@@ -115,6 +166,8 @@ def build_pilgrim_context(pilgrim_id: int, db: Session) -> PilgrimContext:
 
     Never fetches other pilgrims' data or untargeted records.
     """
+    logger.info("Entering build_pilgrim_context for pilgrim_id=%d", pilgrim_id)
+
     pilgrim = db.query(User).filter(User.id == pilgrim_id, User.role == Role.pilgrim).first()
     if not pilgrim:
         raise ValueError("Pilgrim not found")
@@ -174,6 +227,17 @@ def build_pilgrim_context(pilgrim_id: int, db: Session) -> PilgrimContext:
         .order_by(Announcement.created_at.desc())
         .limit(20)
         .all()
+    )
+
+    logger.info(
+        "build_pilgrim_context complete: pilgrim_id=%d, has_preference=%s, has_package=%s, has_flight=%s, has_accommodation=%s, has_transport=%s, announcements=%d",
+        pilgrim_id,
+        preference is not None,
+        package is not None,
+        flight is not None,
+        accommodation is not None,
+        transport is not None,
+        len(announcements),
     )
 
     return PilgrimContext(

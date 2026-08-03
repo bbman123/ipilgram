@@ -14,6 +14,7 @@ from app.models.package import Package
 from app.models.flight import Flight
 from app.models.accommodation import Accommodation
 from app.models.transport import Transport
+from app.models.preference import Preference
 from app.schemas.common import PaginationParams, SortingParams, paginate
 from app.schemas.response import success_response
 from app.schemas.announcement import (
@@ -26,6 +27,7 @@ from app.schemas.announcement import (
 )
 from app.services.template_engine import build_replacement_map, replace_placeholders
 from app.services.tts import generate_audio, AUDIO_CACHE_DIR
+from app.services.translation import translate_pair, get_cache_stats
 
 logger = logging.getLogger("hajj_api")
 
@@ -206,6 +208,8 @@ def get_my_announcements(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(require_role(Role.pilgrim))],
 ):
+    logger.info("Entering get_my_announcements for pilgrim_id=%d", current_user.id)
+
     now = datetime.now(timezone.utc)
     base_conditions = [
         Announcement.publish_date <= now,
@@ -251,15 +255,61 @@ def get_my_announcements(
         .all()
     )
 
+    logger.info("Found %d announcements for pilgrim_id=%d", len(announcements), current_user.id)
+
     replacements = build_replacement_map(current_user.id, db)
+
+    # Determine user's preferred language from their preference record
+    preference = db.query(Preference).filter(Preference.pilgrim_id == current_user.id).first()
+    if preference and preference.preferred_language:
+        lang = preference.preferred_language.value if hasattr(preference.preferred_language, "value") else str(preference.preferred_language)
+    else:
+        lang = "English"
+
+    lang_code_map = {"English": "en", "Hausa": "ha", "Arabic": "ar", "Yoruba": "yo", "Igbo": "ig"}
+    lang_code = lang_code_map.get(lang, "en")
+
+    logger.info(
+        "Pilgrim_id=%d language=%s lang_code=%s announcements=%d",
+        current_user.id,
+        lang,
+        lang_code,
+        len(announcements),
+    )
 
     personalized = []
     for a in announcements:
+        # Replace placeholders with pilgrim-specific data
         personalized_message = replace_placeholders(a.message_template, replacements)
-        lang = replacements.get("language", "English")
-        lang_code_map = {"English": "en", "Hausa": "ha", "Arabic": "ar", "Yoruba": "yo", "Igbo": "ig"}
-        lang_code = lang_code_map.get(lang, "en")
+        title_with_placeholders = replace_placeholders(a.title, replacements)
 
+        # Translate title and message if user's language is not English
+        is_translated = False
+        if lang != "English":
+            try:
+                translated_title, translated_message = translate_pair(
+                    title_with_placeholders,
+                    personalized_message,
+                    lang,
+                )
+                title_with_placeholders = translated_title
+                personalized_message = translated_message
+                is_translated = True
+                logger.info(
+                    "Announcement %d translated to %s: title_length=%d, message_length=%d",
+                    a.id,
+                    lang,
+                    len(translated_title),
+                    len(translated_message),
+                )
+            except Exception as e:
+                logger.error(
+                    "Translation failed for announcement %d, falling back to English: %s",
+                    a.id,
+                    str(e),
+                )
+
+        # Generate audio from translated text (or English fallback)
         audio_url = None
         try:
             audio_url = generate_audio(personalized_message, lang_code)
@@ -269,15 +319,26 @@ def get_my_announcements(
         personalized.append(
             PersonalizedAnnouncement(
                 id=a.id,
-                title=a.title,
+                title=title_with_placeholders,
                 message=personalized_message,
                 priority=a.priority,
                 publish_date=a.publish_date,
                 expiry_date=a.expiry_date,
+                simplified=False,
+                translated=is_translated,
                 language=lang,
                 audio_url=audio_url,
             )
         )
+
+    cache_stats = get_cache_stats()
+    logger.info(
+        "Returning %d personalized announcements for pilgrim_id=%d, language=%s, cache_size=%d",
+        len(personalized),
+        current_user.id,
+        lang,
+        cache_stats.get("cache_size", 0),
+    )
 
     return success_response(data=[pa.model_dump() for pa in personalized], message="Personalized announcements retrieved successfully")
 

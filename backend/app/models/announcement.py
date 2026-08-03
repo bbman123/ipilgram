@@ -31,10 +31,12 @@ class Announcement(Base):
     title: Mapped[str] = mapped_column(String(255))
     message_template: Mapped[str] = mapped_column(Text)
     priority: Mapped[AnnouncementPriority] = mapped_column(
-        Enum(AnnouncementPriority), default=AnnouncementPriority.medium
+        Enum(AnnouncementPriority, name="announcementpriority", create_type=False),
+        default=AnnouncementPriority.medium,
     )
     target_type: Mapped[TargetType] = mapped_column(
-        Enum(TargetType), default=TargetType.all
+        Enum(TargetType, name="targettype", create_type=False),
+        default=TargetType.all,
     )
     target_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     publish_date: Mapped[datetime] = mapped_column(DateTime)

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.services.ai.base import AIProvider, AIResponse
 from app.services.ai.context import build_pilgrim_context, PilgrimContext
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("hajj_api")
 
 SYSTEM_INSTRUCTION = """You are a Hajj pilgrimage information assistant for Nigerian pilgrims.
 
@@ -54,8 +54,12 @@ class PersonalizationEngine:
         2. Send to AI with system instruction
         3. Parse JSON response
         """
+        logger.info("Entering answer_query for pilgrim_id=%d", pilgrim_id)
+
+        logger.info("Step 1: Building pilgrim context...")
         ctx = build_pilgrim_context(pilgrim_id, db)
 
+        logger.info("Step 2: Building prompt...")
         prompt = f"""PIGRIM DATA:
 {ctx.to_prompt_context()}
 
@@ -64,12 +68,38 @@ PIGRIM'S QUESTION:
 
 Respond in JSON format."""
 
+        logger.info(
+            "prompt type=%s length=%d",
+            type(prompt).__name__,
+            len(prompt),
+        )
+
         target_language = "English"
         if ctx.preference and ctx.preference.preferred_language:
-            target_language = ctx.preference.preferred_language.value
+            preferred_lang = ctx.preference.preferred_language
+            logger.info(
+                "preferred_language type=%s value=%r",
+                type(preferred_lang).__name__,
+                preferred_lang,
+            )
+            if hasattr(preferred_lang, "value"):
+                target_language = preferred_lang.value
+            else:
+                target_language = str(preferred_lang)
 
+        logger.info("Step 3: Calling Gemini API...")
+        logger.info("Preparing Gemini request...")
         ai_response = self.provider.generate(prompt, SYSTEM_INSTRUCTION)
+        logger.info("Gemini response received...")
+        logger.info(
+            "Gemini response type=%s, model=%s, tokens=%d, text_length=%d",
+            type(ai_response).__name__,
+            ai_response.model,
+            ai_response.tokens_used,
+            len(ai_response.text),
+        )
 
+        logger.info("Step 4: Parsing AI response...")
         parsed = self._parse_response(ai_response.text)
         parsed["language"] = target_language
 
