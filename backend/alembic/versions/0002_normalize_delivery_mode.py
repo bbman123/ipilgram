@@ -19,7 +19,12 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     bind = op.get_bind()
 
-    # Normalize delivery_mode values: "Text + Audio" → "TextPlusAudio"
+    # 1. Add 'TextPlusAudio' to the PostgreSQL enum type
+    bind.execute(sa.text(
+        "ALTER TYPE deliverymode ADD VALUE IF NOT EXISTS 'TextPlusAudio'"
+    ))
+
+    # 2. Normalize existing rows from legacy value to canonical value
     bind.execute(sa.text(
         "UPDATE preferences SET delivery_mode = 'TextPlusAudio' WHERE delivery_mode = 'Text + Audio'"
     ))
@@ -28,7 +33,9 @@ def upgrade() -> None:
 def downgrade() -> None:
     bind = op.get_bind()
 
-    # Revert delivery_mode normalization
+    # Revert rows back to legacy value
     bind.execute(sa.text(
         "UPDATE preferences SET delivery_mode = 'Text + Audio' WHERE delivery_mode = 'TextPlusAudio'"
     ))
+
+    # Note: PostgreSQL does not support removing enum values
