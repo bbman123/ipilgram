@@ -73,8 +73,9 @@ class TestTranslationService:
     @patch("app.services.translation.GeminiProvider")
     def test_translate_text_english_passthrough(self, mock_gemini_cls):
         """English text should pass through without AI call."""
-        result = self.service.translate_text("Hello world", "English")
+        result, was_translated = self.service.translate_text("Hello world", "English")
         assert result == "Hello world"
+        assert was_translated is False
         mock_gemini_cls.assert_not_called()
 
     @patch("app.services.translation.GeminiProvider")
@@ -87,9 +88,10 @@ class TestTranslationService:
         mock_provider.generate.return_value = mock_response
         mock_gemini_cls.return_value = mock_provider
 
-        result = self.service.translate_text("Hello world", "Hausa")
+        result, was_translated = self.service.translate_text("Hello world", "Hausa")
 
         assert result == "Sannu duniya"
+        assert was_translated is True
         mock_provider.generate.assert_called_once()
 
     @patch("app.services.translation.GeminiProvider")
@@ -102,9 +104,10 @@ class TestTranslationService:
         mock_provider.generate.return_value = mock_response
         mock_gemini_cls.return_value = mock_provider
 
-        result = self.service.translate_text("Hello world", "Arabic")
+        result, was_translated = self.service.translate_text("Hello world", "Arabic")
 
         assert result == "مرحبا بالعالم"
+        assert was_translated is True
         mock_provider.generate.assert_called_once()
 
     @patch("app.services.translation.GeminiProvider")
@@ -117,9 +120,10 @@ class TestTranslationService:
         mock_provider.generate.return_value = mock_response
         mock_gemini_cls.return_value = mock_provider
 
-        result = self.service.translate_text("Hello world", "French")
+        result, was_translated = self.service.translate_text("Hello world", "French")
 
         assert result == "Bonjour le monde"
+        assert was_translated is True
 
     @patch("app.services.translation.GeminiProvider")
     def test_translate_text_to_urdu(self, mock_gemini_cls):
@@ -131,9 +135,10 @@ class TestTranslationService:
         mock_provider.generate.return_value = mock_response
         mock_gemini_cls.return_value = mock_provider
 
-        result = self.service.translate_text("Hello world", "Urdu")
+        result, was_translated = self.service.translate_text("Hello world", "Urdu")
 
         assert result == "ہیلو دنیا"
+        assert was_translated is True
 
     @patch("app.services.translation.GeminiProvider")
     def test_translate_text_to_yoruba(self, mock_gemini_cls):
@@ -145,9 +150,10 @@ class TestTranslationService:
         mock_provider.generate.return_value = mock_response
         mock_gemini_cls.return_value = mock_provider
 
-        result = self.service.translate_text("Hello world", "Yoruba")
+        result, was_translated = self.service.translate_text("Hello world", "Yoruba")
 
         assert result == "Bawo ni ayé"
+        assert was_translated is True
 
     @patch("app.services.translation.GeminiProvider")
     def test_translate_text_to_igbo(self, mock_gemini_cls):
@@ -159,9 +165,10 @@ class TestTranslationService:
         mock_provider.generate.return_value = mock_response
         mock_gemini_cls.return_value = mock_provider
 
-        result = self.service.translate_text("Hello world", "Igbo")
+        result, was_translated = self.service.translate_text("Hello world", "Igbo")
 
         assert result == "Ndewo ụwa"
+        assert was_translated is True
 
     @patch("app.services.translation.GeminiProvider")
     def test_translate_text_to_hindi(self, mock_gemini_cls):
@@ -173,45 +180,50 @@ class TestTranslationService:
         mock_provider.generate.return_value = mock_response
         mock_gemini_cls.return_value = mock_provider
 
-        result = self.service.translate_text("Hello world", "Hindi")
+        result, was_translated = self.service.translate_text("Hello world", "Hindi")
 
         assert result == "नमस्ते दुनिया"
+        assert was_translated is True
 
     @patch("app.services.translation.GeminiProvider")
     def test_translate_text_empty_input(self, mock_gemini_cls):
         """Empty text should pass through without calling Gemini."""
-        result = self.service.translate_text("", "Hausa")
+        result, was_translated = self.service.translate_text("", "Hausa")
         assert result == ""
+        assert was_translated is False
         mock_gemini_cls.assert_not_called()
 
     @patch("app.services.translation.GeminiProvider")
     def test_translate_text_whitespace_only(self, mock_gemini_cls):
         """Whitespace-only text should pass through without calling Gemini."""
-        result = self.service.translate_text("   ", "Hausa")
+        result, was_translated = self.service.translate_text("   ", "Hausa")
         assert result == "   "
+        assert was_translated is False
         mock_gemini_cls.assert_not_called()
 
     @patch("app.services.translation.GeminiProvider")
     def test_translate_text_gemini_error_returns_original(self, mock_gemini_cls):
-        """Gemini error should return original text."""
+        """Gemini error should return original text with was_translated=False."""
         mock_provider = MagicMock()
         mock_provider.generate.side_effect = Exception("Gemini API error")
         mock_gemini_cls.return_value = mock_provider
 
-        result = self.service.translate_text("Hello", "Hausa")
+        result, was_translated = self.service.translate_text("Hello", "Hausa")
         assert result == "Hello"
+        assert was_translated is False
 
     @patch("app.services.translation.GeminiProvider")
     def test_translate_text_gemini_empty_response_fallback(self, mock_gemini_cls):
-        """Empty Gemini response should return original text."""
+        """Empty Gemini response should return original text with was_translated=False."""
         mock_provider = MagicMock()
         mock_response = MagicMock()
         mock_response.text = ""
         mock_provider.generate.return_value = mock_response
         mock_gemini_cls.return_value = mock_provider
 
-        result = self.service.translate_text("Hello", "Hausa")
+        result, was_translated = self.service.translate_text("Hello", "Hausa")
         assert result == "Hello"
+        assert was_translated is False
 
     def test_translate_announcement_english_no_translation(self):
         """English announcements should not be translated."""

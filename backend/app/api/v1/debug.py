@@ -93,7 +93,7 @@ def debug_translate(
     """Test translation endpoint. Translates text to the target language."""
     start_time = time.time()
     try:
-        translated = translation_service.translate_text(text, language)
+        translated, was_translated = translation_service.translate_text(text, language)
         elapsed = time.time() - start_time
         return {
             "status": "success",
@@ -106,7 +106,7 @@ def debug_translate(
             "output": {
                 "translated": translated,
                 "translated_length": len(translated),
-                "was_translated": translated != text,
+                "was_translated": was_translated,
             },
             "cache": translation_service.get_cache_stats(),
         }

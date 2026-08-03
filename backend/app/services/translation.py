@@ -145,21 +145,22 @@ class TranslationService:
         self._provider = GeminiProvider(api_key)
         return self._provider
 
-    def translate_text(self, text: str, target_language: str) -> str:
+    def translate_text(self, text: str, target_language: str) -> tuple[str, bool]:
         """Translate a single text string to the target language.
 
-        Returns cached result if available. Falls back to original on failure.
+        Returns (translated_text, was_translated).
+        On failure, returns (original_text, False) — never silently returns English as translated.
         """
         if not text or not text.strip():
-            return text
+            return text, False
 
         if target_language == "English":
-            return text
+            return text, False
 
         provider = self._get_provider()
         if provider is None:
-            logger.warning("Translation skipped: Gemini not configured")
-            return text
+            logger.warning("Translation SKIPPED: Gemini not configured, falling back to English")
+            return text, False
 
         prompt = f"""Translate the following text to {target_language}.
 
@@ -174,8 +175,8 @@ Return ONLY the translated text."""
             translated = ai_response.text.strip()
 
             if not translated:
-                logger.warning("Gemini returned empty translation, falling back to original")
-                return text
+                logger.warning("Gemini returned empty translation, falling back to English")
+                return text, False
 
             logger.info(
                 "Translation complete: language=%s, input_length=%d, output_length=%d, tokens=%d",
@@ -184,14 +185,14 @@ Return ONLY the translated text."""
                 len(translated),
                 ai_response.tokens_used,
             )
-            return translated
+            return translated, True
 
         except GeminiError as e:
-            logger.error("Gemini translation error: %s (reason=%s)", e.message, e.details)
-            return text
+            logger.error("Gemini translation FAILED: %s (reason=%s) — falling back to English", e.message, e.details)
+            return text, False
         except Exception as e:
-            logger.error("Unexpected translation error: %s", str(e))
-            return text
+            logger.error("Unexpected translation FAILED: %s — falling back to English", str(e))
+            return text, False
 
     def translate_announcement(
         self,
@@ -204,28 +205,39 @@ Return ONLY the translated text."""
 
         Returns (translated_title, translated_message, was_translated).
         Caches by announcement_id + language.
+        Only caches when translation actually succeeded.
         """
         if target_language == "English":
             return title, message, False
 
         cached = self.cache.get(announcement_id, target_language)
         if cached is not None:
-            logger.info("Translation cache hit: announcement_id=%d, language=%s", announcement_id, target_language)
+            logger.info("Translation cache hit: announcement_id=%d, language=%s, title_len=%d, msg_len=%d",
+                        announcement_id, target_language, len(cached[0]), len(cached[1]))
             return cached[0], cached[1], True
 
-        translated_title = self.translate_text(title, target_language)
-        translated_message = self.translate_text(message, target_language)
+        translated_title, title_ok = self.translate_text(title, target_language)
+        translated_message, message_ok = self.translate_text(message, target_language)
 
-        self.cache.set(announcement_id, target_language, translated_title, translated_message)
-        logger.info(
-            "Announcement %d translated to %s: title_length=%d, message_length=%d",
-            announcement_id,
-            target_language,
-            len(translated_title),
-            len(translated_message),
-        )
+        was_translated = title_ok or message_ok
 
-        return translated_title, translated_message, True
+        if was_translated:
+            self.cache.set(announcement_id, target_language, translated_title, translated_message)
+            logger.info(
+                "Announcement %d translated to %s — CACHED: title_len=%d, msg_len=%d",
+                announcement_id,
+                target_language,
+                len(translated_title),
+                len(translated_message),
+            )
+        else:
+            logger.warning(
+                "Announcement %d translation to %s FAILED — returning English, NOT caching",
+                announcement_id,
+                target_language,
+            )
+
+        return translated_title, translated_message, was_translated
 
     def get_cache_stats(self) -> dict:
         """Return cache statistics."""

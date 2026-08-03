@@ -282,11 +282,14 @@ def get_my_announcements(
 
     personalized = []
     for a in announcements:
-        logger.info("[AUDIO_DIAG] Processing announcement_id=%d, language=%s", a.id, lang)
+        logger.info("[TRANSLATE_DIAG] ── announcement_id=%d, lang=%s ──", a.id, lang)
 
         # Replace placeholders with pilgrim-specific data
         personalized_message = replace_placeholders(a.message_template, replacements)
         title_with_placeholders = replace_placeholders(a.title, replacements)
+
+        logger.info("[TRANSLATE_DIAG] ORIGINAL title=%r", title_with_placeholders[:120])
+        logger.info("[TRANSLATE_DIAG] ORIGINAL message=%r", personalized_message[:120])
 
         # Translate title and message if user's language is not English
         is_translated = False
@@ -299,10 +302,9 @@ def get_my_announcements(
             )
             title_with_placeholders = translated_title
             personalized_message = translated_message
-            logger.info(
-                "Translated announcement %d to %s: was_translated=%s",
-                a.id, lang, is_translated,
-            )
+
+        logger.info("[TRANSLATE_DIAG] FINAL   title=%r (was_translated=%s)", title_with_placeholders[:120], is_translated)
+        logger.info("[TRANSLATE_DIAG] FINAL   message=%r (was_translated=%s)", personalized_message[:120], is_translated)
 
         # Generate audio from translated text (pass language name, not code)
         audio_url = None
@@ -310,33 +312,36 @@ def get_my_announcements(
             logger.info("[AUDIO_DIAG] Generating TTS for announcement_id=%d, language=%s", a.id, lang)
             audio_url = generate_audio(personalized_message, lang)
             if audio_url:
-                # Verify the generated file
                 audio_filename = audio_url.split('/')[-1] if audio_url else None
                 audio_full_path = AUDIO_CACHE_DIR / audio_filename if audio_filename else None
                 file_exists = audio_full_path.exists() if audio_full_path else False
                 file_size = audio_full_path.stat().st_size if audio_full_path and file_exists else 0
                 logger.info(
-                    "[AUDIO_DIAG] TTS generated for announcement_id=%d: language=%s, url=%s, filename=%s, file_exists=%s, file_size=%d bytes, content_type=audio/mpeg",
-                    a.id, lang, audio_url, audio_filename, file_exists, file_size,
+                    "[AUDIO_DIAG] TTS generated for announcement_id=%d: language=%s, url=%s, file_size=%d bytes",
+                    a.id, lang, audio_url, file_size,
                 )
             else:
                 logger.warning("[AUDIO_DIAG] TTS returned empty URL for announcement_id=%d", a.id)
         except Exception as e:
             logger.error("[AUDIO_DIAG] TTS generation failed for announcement_id=%d: %s", a.id, str(e))
 
-        personalized.append(
-            PersonalizedAnnouncement(
-                id=a.id,
-                title=title_with_placeholders,
-                message=personalized_message,
-                priority=a.priority,
-                publish_date=a.publish_date,
-                expiry_date=a.expiry_date,
-                simplified=False,
-                translated=is_translated,
-                language=lang,
-                audio_url=audio_url,
-            )
+        pa = PersonalizedAnnouncement(
+            id=a.id,
+            title=title_with_placeholders,
+            message=personalized_message,
+            priority=a.priority,
+            publish_date=a.publish_date,
+            expiry_date=a.expiry_date,
+            simplified=False,
+            translated=is_translated,
+            language=lang,
+            audio_url=audio_url,
+        )
+        personalized.append(pa)
+
+        logger.info(
+            "[FINAL_RESPONSE] announcement_id=%d title=%r message=%r translated=%s language=%s",
+            a.id, pa.title[:120], pa.message[:120], pa.translated, pa.language,
         )
 
     cache_stats = translation_service.get_cache_stats()
