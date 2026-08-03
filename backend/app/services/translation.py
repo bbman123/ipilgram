@@ -1,14 +1,14 @@
-"""Translation service using Gemini AI with in-memory caching.
+"""Translation service using Gemini AI with announcement-level caching.
 
 Announcements are stored in English (canonical). This service translates
 title and message to the user's preferred language on-the-fly, caching
-results to avoid repeated AI calls for the same content + language pair.
+by AnnouncementID + Language to avoid repeated AI calls.
 """
 
-import hashlib
 import logging
 import time
 import threading
+from typing import NamedTuple
 
 from app.core.config import get_settings
 from app.services.ai.gemini import GeminiProvider, GeminiError
@@ -16,48 +16,78 @@ from app.services.ai.gemini import GeminiProvider, GeminiError
 logger = logging.getLogger("hajj_api")
 
 # ---------------------------------------------------------------------------
-# In-memory translation cache with TTL
+# Supported languages
+# ---------------------------------------------------------------------------
+
+SUPPORTED_LANGUAGES: dict[str, str] = {
+    "English": "en",
+    "Hausa": "ha",
+    "Yoruba": "yo",
+    "Igbo": "ig",
+    "Arabic": "ar",
+    "French": "fr",
+    "Urdu": "ur",
+    "Hindi": "hi",
+}
+
+# ---------------------------------------------------------------------------
+# Translation cache (keyed by announcement_id + language)
 # ---------------------------------------------------------------------------
 
 _TRANSLATION_TTL_SECONDS = 3600  # 1 hour
 
 
-class _TranslationCache:
-    """Thread-safe in-memory cache for translations.
+class _CacheEntry(NamedTuple):
+    title: str
+    message: str
+    timestamp: float
 
-    Key: SHA-256(source_text + target_language)
-    Value: (translated_text, timestamp)
+
+class TranslationCache:
+    """Thread-safe in-memory cache for announcement translations.
+
+    Key: (announcement_id, language)
+    Value: (_CacheEntry)
     """
 
     def __init__(self, ttl: int = _TRANSLATION_TTL_SECONDS):
-        self._store: dict[str, tuple[str, float]] = {}
+        self._store: dict[tuple[int, str], _CacheEntry] = {}
         self._lock = threading.Lock()
         self._ttl = ttl
 
-    @staticmethod
-    def _key(text: str, language: str) -> str:
-        raw = f"{text}:{language}".encode()
-        return hashlib.sha256(raw).hexdigest()
-
-    def get(self, text: str, language: str) -> str | None:
-        key = self._key(text, language)
+    def get(self, announcement_id: int, language: str) -> tuple[str, str] | None:
+        key = (announcement_id, language)
         with self._lock:
             entry = self._store.get(key)
             if entry is None:
                 return None
-            translated, ts = entry
-            if time.time() - ts > self._ttl:
+            if time.time() - entry.timestamp > self._ttl:
                 del self._store[key]
                 return None
-            return translated
+            return entry.title, entry.message
 
-    def set(self, text: str, language: str, translated: str) -> None:
-        key = self._key(text, language)
+    def set(self, announcement_id: int, language: str, title: str, message: str) -> None:
+        key = (announcement_id, language)
         with self._lock:
-            self._store[key] = (translated, time.time())
+            self._store[key] = _CacheEntry(
+                title=title,
+                message=message,
+                timestamp=time.time(),
+            )
 
-    def invalidate(self, text: str, language: str) -> None:
-        key = self._key(text, language)
+    def has(self, announcement_id: int, language: str) -> bool:
+        key = (announcement_id, language)
+        with self._lock:
+            entry = self._store.get(key)
+            if entry is None:
+                return False
+            if time.time() - entry.timestamp > self._ttl:
+                del self._store[key]
+                return False
+            return True
+
+    def invalidate(self, announcement_id: int, language: str) -> None:
+        key = (announcement_id, language)
         with self._lock:
             self._store.pop(key, None)
 
@@ -71,31 +101,8 @@ class _TranslationCache:
             return len(self._store)
 
 
-_cache = _TranslationCache()
-
 # ---------------------------------------------------------------------------
-# Supported languages
-# ---------------------------------------------------------------------------
-
-SUPPORTED_LANGUAGES = {
-    "English": "en",
-    "Hausa": "ha",
-    "Yoruba": "yo",
-    "Igbo": "ig",
-    "Arabic": "ar",
-}
-
-
-def _get_provider() -> GeminiProvider | None:
-    settings = get_settings()
-    api_key = settings.GEMINI_API_KEY
-    if not api_key:
-        return None
-    return GeminiProvider(api_key)
-
-
-# ---------------------------------------------------------------------------
-# Core translation
+# TranslationService
 # ---------------------------------------------------------------------------
 
 _TRANSLATION_SYSTEM_INSTRUCTION = """You are a professional translator for Hajj pilgrimage information.
@@ -111,87 +118,130 @@ RULES:
 - Preserve any {{placeholder}} patterns exactly as they appear."""
 
 
-def translate_text(text: str, target_language: str) -> str:
-    """Translate text to the target language using Gemini.
+class TranslationService:
+    """Translates announcements using Gemini AI with caching.
 
-    Returns cached result if available. Falls back to original text on failure.
+    Usage:
+        service = TranslationService()
+        title, message = service.translate_announcement(
+            announcement_id=4,
+            title="Flight Update",
+            message="Your flight departs at 8:00 AM",
+            target_language="Arabic",
+        )
     """
-    if not text or not text.strip():
-        return text
 
-    if target_language == "English":
-        return text
+    def __init__(self):
+        self.cache = TranslationCache()
+        self._provider: GeminiProvider | None = None
 
-    cached = _cache.get(text, target_language)
-    if cached is not None:
-        logger.debug("Translation cache hit: language=%s, length=%d", target_language, len(cached))
-        return cached
+    def _get_provider(self) -> GeminiProvider | None:
+        if self._provider is not None:
+            return self._provider
+        settings = get_settings()
+        api_key = settings.GEMINI_API_KEY
+        if not api_key:
+            return None
+        self._provider = GeminiProvider(api_key)
+        return self._provider
 
-    provider = _get_provider()
-    if provider is None:
-        logger.warning("Translation skipped: Gemini not configured")
-        return text
+    def translate_text(self, text: str, target_language: str) -> str:
+        """Translate a single text string to the target language.
 
-    prompt = f"""Translate the following text to {target_language}.
+        Returns cached result if available. Falls back to original on failure.
+        """
+        if not text or not text.strip():
+            return text
+
+        if target_language == "English":
+            return text
+
+        provider = self._get_provider()
+        if provider is None:
+            logger.warning("Translation skipped: Gemini not configured")
+            return text
+
+        prompt = f"""Translate the following text to {target_language}.
 
 Text to translate:
 {text}
 
 Return ONLY the translated text."""
 
-    try:
-        logger.info("Translating to %s, input_length=%d", target_language, len(text))
-        ai_response = provider.generate(prompt, _TRANSLATION_SYSTEM_INSTRUCTION)
-        translated = ai_response.text.strip()
+        try:
+            logger.info("Translating to %s, input_length=%d", target_language, len(text))
+            ai_response = provider.generate(prompt, _TRANSLATION_SYSTEM_INSTRUCTION)
+            translated = ai_response.text.strip()
 
-        if not translated:
-            logger.warning("Gemini returned empty translation, falling back to original")
+            if not translated:
+                logger.warning("Gemini returned empty translation, falling back to original")
+                return text
+
+            logger.info(
+                "Translation complete: language=%s, input_length=%d, output_length=%d, tokens=%d",
+                target_language,
+                len(text),
+                len(translated),
+                ai_response.tokens_used,
+            )
+            return translated
+
+        except GeminiError as e:
+            logger.error("Gemini translation error: %s (reason=%s)", e.message, e.details)
+            return text
+        except Exception as e:
+            logger.error("Unexpected translation error: %s", str(e))
             return text
 
-        _cache.set(text, target_language, translated)
+    def translate_announcement(
+        self,
+        announcement_id: int,
+        title: str,
+        message: str,
+        target_language: str,
+    ) -> tuple[str, str, bool]:
+        """Translate an announcement's title and message.
+
+        Returns (translated_title, translated_message, was_translated).
+        Caches by announcement_id + language.
+        """
+        if target_language == "English":
+            return title, message, False
+
+        cached = self.cache.get(announcement_id, target_language)
+        if cached is not None:
+            logger.info("Translation cache hit: announcement_id=%d, language=%s", announcement_id, target_language)
+            return cached[0], cached[1], True
+
+        translated_title = self.translate_text(title, target_language)
+        translated_message = self.translate_text(message, target_language)
+
+        self.cache.set(announcement_id, target_language, translated_title, translated_message)
         logger.info(
-            "Translation complete: language=%s, input_length=%d, output_length=%d",
+            "Announcement %d translated to %s: title_length=%d, message_length=%d",
+            announcement_id,
             target_language,
-            len(text),
-            len(translated),
+            len(translated_title),
+            len(translated_message),
         )
-        return translated
 
-    except GeminiError as e:
-        logger.error("Gemini translation error: %s (reason=%s)", e.message, e.details)
-        return text
-    except Exception as e:
-        logger.error("Unexpected translation error: %s", str(e))
-        return text
+        return translated_title, translated_message, True
 
+    def get_cache_stats(self) -> dict:
+        """Return cache statistics."""
+        return {
+            "cache_size": self.cache.size,
+            "ttl_seconds": self.cache._ttl,
+        }
 
-def translate_pair(
-    title: str,
-    message: str,
-    target_language: str,
-) -> tuple[str, str]:
-    """Translate both title and message to the target language.
-
-    Returns (translated_title, translated_message).
-    Falls back to originals on failure.
-    """
-    if target_language == "English":
-        return title, message
-
-    translated_title = translate_text(title, target_language)
-    translated_message = translate_text(message, target_language)
-    return translated_title, translated_message
+    def clear_cache(self) -> None:
+        """Clear the translation cache."""
+        self.cache.clear()
+        logger.info("Translation cache cleared")
 
 
-def get_cache_stats() -> dict:
-    """Return translation cache statistics."""
-    return {
-        "cache_size": _cache.size,
-        "ttl_seconds": _cache._ttl,
-    }
+# ---------------------------------------------------------------------------
+# Module-level singleton
+# ---------------------------------------------------------------------------
 
-
-def clear_cache() -> None:
-    """Clear the translation cache."""
-    _cache.clear()
-    logger.info("Translation cache cleared")
+translation_service = TranslationService()

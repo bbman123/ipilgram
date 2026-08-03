@@ -27,7 +27,7 @@ from app.schemas.announcement import (
 )
 from app.services.template_engine import build_replacement_map, replace_placeholders
 from app.services.tts import generate_audio, AUDIO_CACHE_DIR
-from app.services.translation import translate_pair, get_cache_stats
+from app.services.translation import translation_service
 
 logger = logging.getLogger("hajj_api")
 
@@ -286,30 +286,16 @@ def get_my_announcements(
         # Translate title and message if user's language is not English
         is_translated = False
         if lang != "English":
-            try:
-                translated_title, translated_message = translate_pair(
-                    title_with_placeholders,
-                    personalized_message,
-                    lang,
-                )
-                title_with_placeholders = translated_title
-                personalized_message = translated_message
-                is_translated = True
-                logger.info(
-                    "Announcement %d translated to %s: title_length=%d, message_length=%d",
-                    a.id,
-                    lang,
-                    len(translated_title),
-                    len(translated_message),
-                )
-            except Exception as e:
-                logger.error(
-                    "Translation failed for announcement %d, falling back to English: %s",
-                    a.id,
-                    str(e),
-                )
+            translated_title, translated_message, is_translated = translation_service.translate_announcement(
+                announcement_id=a.id,
+                title=title_with_placeholders,
+                message=personalized_message,
+                target_language=lang,
+            )
+            title_with_placeholders = translated_title
+            personalized_message = translated_message
 
-        # Generate audio from translated text (or English fallback)
+        # Generate audio from translated text
         audio_url = None
         try:
             audio_url = generate_audio(personalized_message, lang_code)
@@ -331,7 +317,7 @@ def get_my_announcements(
             )
         )
 
-    cache_stats = get_cache_stats()
+    cache_stats = translation_service.get_cache_stats()
     logger.info(
         "Returning %d personalized announcements for pilgrim_id=%d, language=%s, cache_size=%d",
         len(personalized),

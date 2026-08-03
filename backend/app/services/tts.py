@@ -21,6 +21,9 @@ LANGUAGE_MAP = {
     "Yoruba": "yo",
     "Igbo": "ig",
     "Arabic": "ar",
+    "French": "fr",
+    "Urdu": "ur",
+    "Hindi": "hi",
 }
 
 FALLBACK_LANGUAGE = "en"
@@ -48,17 +51,17 @@ def generate_audio(text: str, language: str) -> str:
     filepath = AUDIO_CACHE_DIR / filename
 
     if filepath.exists():
-        logger.debug("TTS cache hit: lang=%s, file=%s", language, filename)
+        logger.info("Audio cache hit: language=%s, file=%s", language, filename)
         return f"/api/v1/tts/audio/{filename}"
 
     try:
-        logger.info("Generating TTS: lang=%s, text_length=%d", language, len(text))
+        logger.info("Generating TTS: language=%s, text_length=%d", language, len(text))
         tts = gTTS(text=text, lang=lang_code)
         tts.save(str(filepath))
-        logger.info("TTS generated: lang=%s, file=%s, size=%d bytes", language, filename, filepath.stat().st_size)
+        logger.info("TTS generated: language=%s, file=%s, size=%d bytes", language, filename, filepath.stat().st_size)
         return f"/api/v1/tts/audio/{filename}"
     except Exception as e:
-        logger.error("TTS generation failed: lang=%s, error=%s", language, str(e))
+        logger.error("TTS generation failed: language=%s, error=%s", language, str(e))
         # If the requested language failed, try English as fallback
         if lang_code != FALLBACK_LANGUAGE:
             try:
@@ -68,6 +71,7 @@ def generate_audio(text: str, language: str) -> str:
                 fallback_filepath = AUDIO_CACHE_DIR / fallback_filename
 
                 if fallback_filepath.exists():
+                    logger.info("TTS fallback cache hit: file=%s", fallback_filename)
                     return f"/api/v1/tts/audio/{fallback_filename}"
 
                 tts = gTTS(text=text, lang=FALLBACK_LANGUAGE)

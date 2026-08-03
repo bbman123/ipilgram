@@ -12,7 +12,7 @@ from fastapi import APIRouter, Query
 
 from app.core.config import get_settings
 from app.services.ai.gemini import GeminiProvider, GeminiError
-from app.services.translation import translate_text, get_cache_stats, clear_cache
+from app.services.translation import translation_service
 
 logger = logging.getLogger("hajj_api")
 
@@ -93,7 +93,7 @@ def debug_translate(
     """Test translation endpoint. Translates text to the target language."""
     start_time = time.time()
     try:
-        translated = translate_text(text, language)
+        translated = translation_service.translate_text(text, language)
         elapsed = time.time() - start_time
         return {
             "status": "success",
@@ -108,7 +108,7 @@ def debug_translate(
                 "translated_length": len(translated),
                 "was_translated": translated != text,
             },
-            "cache": get_cache_stats(),
+            "cache": translation_service.get_cache_stats(),
         }
     except Exception as e:
         elapsed = time.time() - start_time
@@ -124,5 +124,5 @@ def debug_translate(
 @router.post("/translate/cache/clear")
 def debug_clear_translation_cache():
     """Clear the translation cache."""
-    clear_cache()
+    translation_service.clear_cache()
     return {"status": "ok", "message": "Translation cache cleared"}
