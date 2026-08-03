@@ -289,7 +289,7 @@ class _LanguageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final languages = ['English', 'Arabic', 'French', 'Urdu', 'Hausa', 'Yoruba', 'Igbo', 'Hindi'];
+    final languages = ['English', 'Arabic', 'Hausa', 'Yoruba', 'Igbo'];
     return ListTile(
       leading: const Icon(Icons.language),
       title: const Text('Language'),
@@ -311,10 +311,20 @@ class _DeliveryModeTile extends StatelessWidget {
 
   const _DeliveryModeTile({required this.currentMode, required this.onChanged});
 
+  // Display labels shown to the user in the UI
+  static const List<String> displayLabels = ['Text', 'Audio', 'Text + Audio'];
+
+  // Canonical API values sent to the backend
+  static const List<String> apiValues = ['Text', 'Audio', 'TextPlusAudio'];
+
   @override
   Widget build(BuildContext context) {
-    final modes = ['Text', 'Audio', 'Text + Audio'];
     final icons = [Icons.text_fields, Icons.volume_up, Icons.surround_sound];
+
+    // Find the current display label from the API value
+    final currentIndex = apiValues.indexOf(currentMode);
+    final selectedDisplay = currentIndex >= 0 ? displayLabels[currentIndex] : displayLabels[0];
+
     return ListTile(
       leading: const Icon(Icons.delivery_dining),
       title: const Text('Delivery Mode'),
@@ -323,9 +333,9 @@ class _DeliveryModeTile extends StatelessWidget {
         style: Theme.of(context).textTheme.bodySmall,
       ),
       trailing: DropdownButton<String>(
-        value: currentMode,
+        value: selectedDisplay,
         underline: const SizedBox(),
-        items: modes.asMap().entries.map((entry) {
+        items: displayLabels.asMap().entries.map((entry) {
           return DropdownMenuItem(
             value: entry.value,
             child: Row(
@@ -339,7 +349,10 @@ class _DeliveryModeTile extends StatelessWidget {
           );
         }).toList(),
         onChanged: (v) {
-          if (v != null) onChanged(v);
+          if (v != null) {
+            final index = displayLabels.indexOf(v);
+            if (index >= 0) onChanged(apiValues[index]);
+          }
         },
       ),
     );

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.deps import require_role, get_current_user
 from app.models.user import User, Role
-from app.models.preference import Preference
+from app.models.preference import Preference, DELIVERY_MODE_CANONICAL, DeliveryMode
 from app.schemas.common import PaginationParams, SortingParams, paginate
 from app.schemas.response import success_response
 from app.schemas.preference import (
@@ -130,7 +130,7 @@ def list_preferences(
     search: str = Query("", max_length=255, description="Search by pilgrim name or email"),
     pilgrim_id: int | None = Query(None, description="Filter by pilgrim ID"),
     language: str | None = Query(None, description="Filter by preferred language"),
-    delivery_mode: str | None = Query(None, description="Filter by delivery mode"),
+    delivery_mode: str | None = Query(None, description="Filter by delivery mode (Text, Audio, or TextPlusAudio)"),
 ):
     query = db.query(Preference)
 
@@ -150,7 +150,13 @@ def list_preferences(
         query = query.filter(Preference.preferred_language == language)
 
     if delivery_mode:
-        query = query.filter(Preference.delivery_mode == delivery_mode)
+        # Normalize legacy display labels to canonical enum values
+        normalized = DELIVERY_MODE_CANONICAL.get(delivery_mode.strip())
+        if normalized:
+            query = query.filter(Preference.delivery_mode == normalized)
+        else:
+            # Try direct match (might already be canonical)
+            query = query.filter(Preference.delivery_mode == delivery_mode)
 
     query = sorting.apply(query, Preference, ALLOWED_SORT_FIELDS)
     result = paginate(query, pagination)

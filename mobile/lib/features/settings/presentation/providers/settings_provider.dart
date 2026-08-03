@@ -6,6 +6,43 @@ import 'package:dio/dio.dart' as dio;
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/storage_keys.dart';
 
+/// Mapping between display labels (shown in UI) and canonical API values (sent to backend).
+const Map<String, String> deliveryModeDisplayToApi = {
+  'Text': 'Text',
+  'Audio': 'Audio',
+  'Text + Audio': 'TextPlusAudio',
+};
+
+/// Mapping between canonical API values and display labels.
+const Map<String, String> deliveryModeApiToDisplay = {
+  'Text': 'Text',
+  'Audio': 'Audio',
+  'TextPlusAudio': 'Text + Audio',
+};
+
+/// Normalize any delivery mode value (display label, legacy format, or canonical)
+/// to the canonical API value.
+String normalizeDeliveryMode(String mode) {
+  // Check if it's already a canonical API value
+  if (deliveryModeApiToDisplay.containsKey(mode)) {
+    return mode;
+  }
+  // Check if it's a display label
+  final apiValue = deliveryModeDisplayToApi[mode];
+  if (apiValue != null) {
+    return apiValue;
+  }
+  // Handle legacy formats
+  final lower = mode.toLowerCase().trim();
+  if (lower == 'text') return 'Text';
+  if (lower == 'audio') return 'Audio';
+  if (lower == 'text + audio' || lower == 'textplusaudio' || lower == 'text_and_audio') {
+    return 'TextPlusAudio';
+  }
+  // Default to Text
+  return 'Text';
+}
+
 class SettingsState {
   final ThemeMode themeMode;
   final String language;

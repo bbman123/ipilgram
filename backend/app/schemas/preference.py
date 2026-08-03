@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models.preference import PreferredLanguage, DeliveryMode
+from app.models.preference import PreferredLanguage, DeliveryMode, DELIVERY_MODE_CANONICAL
 
 
 class PreferenceCreate(BaseModel):
@@ -14,18 +14,40 @@ class PreferenceCreate(BaseModel):
     )
     delivery_mode: DeliveryMode = Field(
         default=DeliveryMode.Text,
-        description="Preferred content delivery format",
-        examples=["Text + Audio"],
+        description="Preferred content delivery format (Text, Audio, or TextPlusAudio)",
+        examples=["TextPlusAudio"],
     )
     font_size: int = Field(default=16, ge=8, le=48, description="Display font size (8-48)", examples=[16])
     notifications_enabled: bool = Field(default=True, description="Whether push notifications are enabled", examples=[True])
 
+    @field_validator("delivery_mode", mode="before")
+    @classmethod
+    def normalize_delivery_mode(cls, v):
+        """Normalize legacy display labels to canonical enum values."""
+        if isinstance(v, str):
+            v = v.strip()
+            canonical = DELIVERY_MODE_CANONICAL.get(v)
+            if canonical is not None:
+                return canonical
+        return v
+
 
 class PreferenceUpdate(BaseModel):
     preferred_language: PreferredLanguage | None = Field(default=None, description="Preferred display and notification language")
-    delivery_mode: DeliveryMode | None = Field(default=None, description="Preferred content delivery format")
+    delivery_mode: DeliveryMode | None = Field(default=None, description="Preferred content delivery format (Text, Audio, or TextPlusAudio)")
     font_size: int | None = Field(default=None, ge=8, le=48, description="Display font size (8-48)")
     notifications_enabled: bool | None = Field(default=None, description="Whether push notifications are enabled")
+
+    @field_validator("delivery_mode", mode="before")
+    @classmethod
+    def normalize_delivery_mode(cls, v):
+        """Normalize legacy display labels to canonical enum values."""
+        if isinstance(v, str):
+            v = v.strip()
+            canonical = DELIVERY_MODE_CANONICAL.get(v)
+            if canonical is not None:
+                return canonical
+        return v
 
 
 class PreferenceResponse(BaseModel):
